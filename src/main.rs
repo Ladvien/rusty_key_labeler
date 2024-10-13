@@ -1,19 +1,7 @@
 use bevy::prelude::*;
-use serde::{Deserialize, Serialize};
+mod settings;
 
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
-pub struct Settings {
-    pub zoom_factor: f32,
-    // pub pan: Vec2,
-}
-
-#[derive(Debug, Serialize, Deserialize, Resource)]
-pub struct Config {
-    pub image_path: String,
-    pub annotation_path: String,
-    pub output_path: String,
-    pub settings: Settings,
-}
+use settings::Config;
 
 fn main() {
     // Load YAML configuration file from file.
@@ -27,7 +15,7 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .insert_resource(config)
         .add_systems(Startup, setup)
-        .add_systems(Update, (zoom_system))
+        .add_systems(Update, (zoom_system, translate_image_system))
         .run();
 }
 
@@ -51,12 +39,37 @@ pub fn zoom_system(
 ) {
     for mut projection in query.iter_mut() {
         let mut log_scale = projection.scale.ln();
-        if keyboard_input.pressed(KeyCode::KeyE) {
+
+        if keyboard_input.pressed(config.settings.key_map.zoom_in) {
             log_scale -= config.settings.zoom_factor * time.delta_seconds();
         }
-        if keyboard_input.pressed(KeyCode::KeyQ) {
+        if keyboard_input.pressed(config.settings.key_map.zoom_out) {
             log_scale += config.settings.zoom_factor * time.delta_seconds();
         }
         projection.scale = log_scale.exp();
+    }
+}
+
+pub fn translate_image_system(
+    mut query: Query<&mut Transform, With<Sprite>>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
+    time: Res<Time>,
+    config: Res<Config>,
+) {
+    for mut transform in query.iter_mut() {
+        let mut translation = transform.translation;
+        if keyboard_input.pressed(config.settings.key_map.pan_up) {
+            translation.y += config.settings.pan_factor.y * time.delta_seconds();
+        }
+        if keyboard_input.pressed(config.settings.key_map.pan_down) {
+            translation.y -= config.settings.pan_factor.y * time.delta_seconds();
+        }
+        if keyboard_input.pressed(config.settings.key_map.pan_left) {
+            translation.x -= config.settings.pan_factor.x * time.delta_seconds();
+        }
+        if keyboard_input.pressed(config.settings.key_map.pan_right) {
+            translation.x += config.settings.pan_factor.x * time.delta_seconds();
+        }
+        transform.translation = translation;
     }
 }

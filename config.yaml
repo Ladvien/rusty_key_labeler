@@ -3,4 +3,24 @@ annotation_path: /Users/ladvien/Dropbox/graphics/ml_images/spriter_sheet_ider/co
 output_path: output/
 
 settings:
-  zoom_factor: 4.0
+  zoom_factor: 1.0
+  pan_factor:
+    x: 120.0
+    y: 120.0
+
+  key_map:
+    zoom_in: 'KeyE'
+    zoom_out: 'KeyQ'
+    pan_up: 'KeyW'
+    pan_down: 'KeyS'
+    pan_left: 'KeyD'
+    pan_right: 'KeyA'
+    # save: 13
+    # quit: 27
+    # next: 32
+    # previous: 8
+    # delete: 127
+    # undo: 117
+    # redo: 114
+    # toggle: 116
+    # toggle_all
