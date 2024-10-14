@@ -1,5 +1,5 @@
-image_path: /Users/ladvien/Dropbox/graphics/ml_images/spriter_sheet_ider/combined_annotations/train/images/
-annotation_path: /Users/ladvien/Dropbox/graphics/ml_images/spriter_sheet_ider/combined_annotations/train/annotations/
+image_path: /Users/ladvien/Dropbox/graphics/ml_images/spriter_sheet_ider/combined_annotations
+label_path: /Users/ladvien/Dropbox/graphics/ml_images/spriter_sheet_ider/combined_annotations
 output_path: output/
 
 settings:
@@ -11,8 +11,8 @@ settings:
   key_map:
     zoom_in: 'KeyE'
     zoom_out: 'KeyQ'
-    pan_up: 'KeyW'
-    pan_down: 'KeyS'
+    pan_up: 'KeyS'
+    pan_down: 'KeyW'
     pan_left: 'KeyD'
     pan_right: 'KeyA'
     # save: 13
@@ -24,3 +24,14 @@ settings:
     # redo: 114
     # toggle: 116
     # toggle_all
+
+  output_format:
+    type: yolo
+    project_name: spriter_sheet_ider
+    folder_paths:
+      train: ./train/
+      validation: ./validation/
+      test: ./test/
+    class_map:
+      0: 'horizontal_animation'
+      1: 'vertical_animation'

@@ -5,6 +5,7 @@ version = "0.1.0"
 
 [dependencies]
 bevy = {version = "0.14.1", features = ["dynamic_linking", "serialize"]}
+itertools = "0.13.0"
 serde = "1.0"
 serde_yml = "0.0.12"
 

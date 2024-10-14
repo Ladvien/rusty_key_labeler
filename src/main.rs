@@ -1,7 +1,9 @@
 use bevy::prelude::*;
 mod settings;
+mod yolo_project;
 
 use settings::Config;
+use yolo_project::YoloProject;
 
 fn main() {
     // Load YAML configuration file from file.
@@ -9,20 +11,26 @@ fn main() {
     let data = std::fs::read_to_string("config.yaml").expect("Unable to read file");
     let config: Config = serde_yml::from_str(&data).expect("Unable to parse YAML");
 
-    println!("{:#?}", config);
+    // println!("{:#?}", config);
+
+    let mut project = YoloProject::new(&config);
+    project.load().expect("Unable to load project");
 
     App::new()
         .add_plugins(DefaultPlugins)
         .insert_resource(config)
+        .insert_resource(project)
         .add_systems(Startup, setup)
         .add_systems(Update, (zoom_system, translate_image_system))
         .run();
 }
 
-fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
-    let root_path = String::from("/Users/ladvien/Dropbox/graphics/ml_images/spriter_sheet_ider/combined_annotations/train/images/");
-    let image_path = String::from("zx_spectrum_-_pac-mania_-_pac-man.png");
-    let image_path = format!("{}{}", root_path, image_path);
+fn setup(mut commands: Commands, asset_server: Res<AssetServer>, project: Res<YoloProject>) {
+    let first_image = project.image_label_pairs.as_ref().unwrap().first();
+
+    println!("{:?}", first_image);
+
+    let image_path = String::from(first_image.unwrap().image_path.as_ref().unwrap());
 
     commands.spawn(Camera2dBundle::default());
     commands.spawn(SpriteBundle {

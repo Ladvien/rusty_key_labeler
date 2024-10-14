@@ -3181,6 +3181,7 @@ name = "rusty_key_labeler"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "itertools",
  "serde",
  "serde_yml",
 ]
