@@ -1,5 +1,5 @@
-image_path: /Users/ladvien/Dropbox/graphics/ml_images/spriter_sheet_ider/combined_annotations
-label_path: /Users/ladvien/Dropbox/graphics/ml_images/spriter_sheet_ider/combined_annotations
+image_path: input/yolo_export/
+label_path: input/yolo_export/
 output_path: output/
 
 settings:

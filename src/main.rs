@@ -14,7 +14,8 @@ fn main() {
     // println!("{:#?}", config);
 
     let mut project = YoloProject::new(&config);
-    project.load().expect("Unable to load project");
+    let report = project.validate();
+    // project.load().expect("Unable to load project");
 
     App::new()
         .add_plugins(DefaultPlugins)
@@ -26,11 +27,11 @@ fn main() {
 }
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>, project: Res<YoloProject>) {
-    let first_image = project.image_label_pairs.as_ref().unwrap().first();
+    let first_image = project.image_label_pairs.clone().unwrap().first().cloned();
 
     println!("{:?}", first_image);
 
-    let image_path = String::from(first_image.unwrap().image_path.as_ref().unwrap());
+    let image_path = first_image.unwrap().image_path.unwrap().clone();
 
     commands.spawn(Camera2dBundle::default());
     commands.spawn(SpriteBundle {
