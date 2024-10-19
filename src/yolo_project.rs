@@ -35,43 +35,41 @@ pub struct PathWithKey {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct YoloProjectData {
-    stems: Vec<String>,
-    pairs: HashMap<String, Vec<PairingResult>>,
+    pub stems: Vec<String>,
+    pub pairs: HashMap<String, Vec<PairingResult>>,
 }
 
 #[derive(Debug, Resource, Clone)]
 pub struct YoloProject {
-    pub image_path: String,
-    pub label_path: String,
-    pub image_label_pairs: Option<Vec<ImageLabelPair>>,
-    data: YoloProjectData,
+    pub data: YoloProjectData,
 }
 
 impl YoloProject {
     pub fn new(config: &Config) -> Self {
-        let image_paths = Self::get_filepaths_for_extension(&config.image_path, "png");
-        let label_paths = Self::get_filepaths_for_extension(&config.label_path, "txt");
+        let image_paths = Self::get_filepaths_for_extension(
+            &config.image_path,
+            vec!["jpg", "png", "PNG", "JPEG"],
+        );
+        let label_paths = Self::get_filepaths_for_extension(&config.label_path, vec!["txt"]);
+
         let all_filepaths = image_paths
             .iter()
             .chain(label_paths.iter())
             .collect::<Vec<&PathWithKey>>();
 
-        let stems = Self::get_file_stems(&all_filepaths);
+        let mut stems = Self::get_file_stems(&all_filepaths);
 
-        let potential_pairs = Self::pair_images_and_labels(stems.clone(), label_paths, image_paths);
+        stems.sort();
+        stems.dedup();
+
+        let pairs = Self::pair_images_and_labels(stems.clone(), label_paths, image_paths);
 
         Self {
-            image_path: config.image_path.clone(),
-            image_label_pairs: None,
-            label_path: config.label_path.clone(),
-            data: YoloProjectData {
-                stems,
-                pairs: potential_pairs,
-            },
+            data: YoloProjectData { stems, pairs },
         }
     }
 
-    fn get_filepaths_for_extension(path: &str, extension: &str) -> Vec<PathWithKey> {
+    fn get_filepaths_for_extension(path: &str, extensions: Vec<&str>) -> Vec<PathWithKey> {
         let file_paths = std::fs::read_dir(path).unwrap();
         let mut paths = Vec::<PathWithKey>::new();
 
@@ -79,8 +77,10 @@ impl YoloProject {
             let file_path = file_path.unwrap().path();
 
             if file_path.is_dir() {
-                let filepaths =
-                    Self::get_filepaths_for_extension(file_path.to_str().unwrap(), extension);
+                let filepaths = Self::get_filepaths_for_extension(
+                    file_path.to_str().unwrap(),
+                    extensions.clone(),
+                );
 
                 paths.extend(filepaths);
             }
@@ -88,7 +88,9 @@ impl YoloProject {
             if let Some(file_extension) = file_path.extension() {
                 let stem = file_path.file_stem().unwrap().to_str().unwrap();
                 // TODO: Convert to return a PathWithKey
-                if file_extension == extension {
+                let extension_str = file_extension.to_str().unwrap();
+
+                if extensions.contains(&extension_str) {
                     paths.push(PathWithKey {
                         path: file_path.clone(),
                         key: String::from(stem),
@@ -151,8 +153,6 @@ impl YoloProject {
             );
         }
 
-        println!("{:#?}", pairing_map);
-
         pairing_map
     }
 
@@ -184,11 +184,17 @@ impl YoloProject {
                     message: Some("Both image and label files are missing.".to_string()),
                 }]),
             },
-            _ => PairingResult::Error(vec![ImageLabelPair {
+            EitherOrBoth::Left(image_path) => PairingResult::Error(vec![ImageLabelPair {
+                name: stem,
+                image_path: Some(image_path.unwrap()),
+                label_path: None,
+                message: Some("Label file is missing.".to_string()),
+            }]),
+            EitherOrBoth::Right(label_path) => PairingResult::Error(vec![ImageLabelPair {
                 name: stem,
                 image_path: None,
-                label_path: None,
-                message: Some("Invalid pair.".to_string()),
+                label_path: Some(label_path.unwrap()),
+                message: Some("Image file is missing.".to_string()),
             }]),
         }
     }
@@ -217,5 +223,278 @@ impl YoloProject {
         // }
 
         Ok((valid_image_label_pairs, invalid_image_label_pairs))
+    }
+
+    pub fn get_valid_pairs(&self) -> Vec<ImageLabelPair> {
+        let mut valid_pairs = Vec::<ImageLabelPair>::new();
+
+        for pair in &self.data.pairs {
+            for result in pair.1 {
+                if let PairingResult::Valid(image_label_pair) = result {
+                    valid_pairs.push(image_label_pair.clone());
+                }
+            }
+        }
+
+        valid_pairs
+    }
+
+    pub fn get_invalid_pairs(&self) -> Vec<ImageLabelPair> {
+        let mut invalid_pairs = Vec::<ImageLabelPair>::new();
+
+        for pair in &self.data.pairs {
+            for result in pair.1 {
+                if let PairingResult::Error(vec) = result {
+                    invalid_pairs.extend(vec.clone());
+                }
+            }
+        }
+
+        invalid_pairs
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use super::*;
+    use image::{ImageBuffer, ImageReader, Rgb};
+    use rstest::{fixture, rstest};
+
+    #[fixture]
+    fn config() -> Config {
+        let config: Config = serde_yml::from_str(
+            r#"
+        image_path: test_output/
+        label_path: test_output/
+        output_path: output/
+
+        output_format:
+            type: yolo
+            project_name: test_project
+            folder_paths:
+                train: ./train/
+                validation: ./validation/
+                test: ./test/
+            class_map:
+                0: 'first_class'
+                1: 'not_first_class'
+        "#,
+        )
+        .expect("Unable to parse YAML");
+
+        config
+    }
+
+    #[fixture]
+    fn project(config: Config) -> YoloProject {
+        YoloProject::new(&config)
+    }
+
+    #[fixture]
+    fn image_data() -> ImageBuffer<Rgb<u8>, Vec<u8>> {
+        //! An example of generating julia fractals.
+        let imgx = 800;
+        let imgy = 800;
+
+        let scalex = 3.0 / imgx as f32;
+        let scaley = 3.0 / imgy as f32;
+
+        // Create a new ImgBuf with width: imgx and height: imgy
+        let mut imgbuf = image::ImageBuffer::new(imgx, imgy);
+
+        // Iterate over the coordinates and pixels of the image
+        for (x, y, pixel) in imgbuf.enumerate_pixels_mut() {
+            let r = (0.3 * x as f32) as u8;
+            let b = (0.3 * y as f32) as u8;
+            *pixel = image::Rgb([r, 0, b]);
+        }
+
+        // A redundant loop to demonstrate reading image data
+        for x in 0..imgx {
+            for y in 0..imgy {
+                let cx = y as f32 * scalex - 1.5;
+                let cy = x as f32 * scaley - 1.5;
+
+                let c = num_complex::Complex::new(-0.4, 0.6);
+                let mut z = num_complex::Complex::new(cx, cy);
+
+                let mut i = 0;
+                while i < 255 && z.norm() <= 2.0 {
+                    z = z * z + c;
+                    i += 1;
+                }
+
+                let pixel = imgbuf.get_pixel_mut(x, y);
+                let image::Rgb(data) = *pixel;
+                *pixel = image::Rgb([data[0], i as u8, data[2]]);
+            }
+        }
+
+        imgbuf
+    }
+
+    fn create_dir_and_write_file(path: &Path, content: &str) {
+        fs::create_dir_all(path.parent().unwrap()).expect("Unable to create directory");
+        fs::write(path, content).expect("Unable to write file");
+    }
+
+    fn create_image_file(path: &Path, image_data: &ImageBuffer<Rgb<u8>, Vec<u8>>) {
+        fs::create_dir_all(path.parent().unwrap()).expect("Unable to create directory");
+        image_data.save(path).expect("Unable to write file");
+    }
+
+    #[rstest]
+    fn test_get_filepaths_for_extension(config: Config) {
+        let file1 = PathBuf::from("test_output/test_files/test1.txt");
+        create_dir_and_write_file(&file1, "Hello, world!");
+
+        let path = file1.parent().unwrap().to_str().unwrap();
+        let extensions = vec!["txt"];
+        let filepaths = YoloProject::get_filepaths_for_extension(path, extensions);
+
+        assert_eq!(filepaths.len(), 1);
+    }
+
+    /*
+    Test Scenarios
+        Type
+        Error = E
+        Warn  = W
+        Valid = V
+        Mixed = M
+
+                 | 1 Label | No Label | Label >2
+        1 Image  |  V      |   E      |  M
+        No Image |  E      |   -      |  M
+        Image >2 |  M      |   E      |  V
+     */
+
+    #[rstest]
+    fn test_project_validation_produces_one_valid_pair_for_one_image_one_label(
+        project: YoloProject,
+        image_data: ImageBuffer<Rgb<u8>, Vec<u8>>,
+    ) {
+        let test_output_path = "test_output/test_files1";
+        let image_file = PathBuf::from(format!("{}/test1.jpg", test_output_path));
+        create_image_file(&image_file, &image_data);
+
+        let file1 = PathBuf::from(format!("{}/test1.txt", test_output_path));
+        create_dir_and_write_file(&file1, "Hello, world!");
+
+        let valid_pairs = project.get_valid_pairs();
+        let invalid_pairs = project.get_invalid_pairs();
+
+        let valid_pair = valid_pairs
+            .into_iter()
+            .find(|pair| pair.name == "test1")
+            .unwrap();
+
+        let invalid_pair = invalid_pairs
+            .into_iter()
+            .find(|pair| pair.name == "test1")
+            .unwrap();
+
+        assert!(valid_pair.name == invalid_pair.name);
+    }
+
+    #[rstest]
+    fn test_project_validation_produces_one_invalid_pair_for_one_image_no_label(
+        project: YoloProject,
+        image_data: ImageBuffer<Rgb<u8>, Vec<u8>>,
+    ) {
+        let test_output_path = "test_output/test_files2";
+        let image_file = PathBuf::from(format!("{}/test2.jpg", test_output_path));
+        create_image_file(&image_file, &image_data);
+
+        let invalid_pairs = project.get_invalid_pairs();
+        let invalid_pair = invalid_pairs
+            .into_iter()
+            .find(|pair| pair.name == "test2")
+            .unwrap();
+
+        assert_eq!(invalid_pair.name, "test2");
+    }
+
+    #[rstest]
+    fn test_project_validation_produces_one_valid_pair_for_one_image_two_labels(
+        project: YoloProject,
+        image_data: ImageBuffer<Rgb<u8>, Vec<u8>>,
+    ) {
+        let test_output_path = "test_output/test_files3";
+        let image_file = PathBuf::from(format!("{}/test3.jpg", test_output_path));
+        create_image_file(&image_file, &image_data);
+
+        let file2 = PathBuf::from(format!("{}/dir1/test3.txt", test_output_path));
+        let file3 = PathBuf::from(format!("{}/dir2/test3.txt", test_output_path));
+        create_dir_and_write_file(&file2, "Hello, world!");
+        create_dir_and_write_file(&file3, "Hello, world!");
+
+        let valid_pairs = project.get_valid_pairs();
+        let invalid_pairs = project.get_invalid_pairs();
+
+        let valid_pair = valid_pairs
+            .into_iter()
+            .find(|pair| pair.name == "test3")
+            .unwrap();
+
+        let invalid_pair = invalid_pairs
+            .into_iter()
+            .find(|pair| pair.name == "test3")
+            .unwrap();
+
+        assert!(valid_pair.name == invalid_pair.name);
+    }
+
+    #[rstest]
+    fn test_project_validation_produces_one_invalid_pair_for_no_image_one_label(
+        project: YoloProject,
+    ) {
+        let test_output_path = "test_output/test_files4";
+        let file1 = PathBuf::from(format!("{}/test4.txt", test_output_path));
+        create_dir_and_write_file(&file1, "Hello, world!");
+
+        let invalid_pairs = project.get_invalid_pairs();
+        let invalid_pair = invalid_pairs
+            .into_iter()
+            .find(|pair| pair.name == "test4")
+            .unwrap();
+
+        assert_eq!(invalid_pair.name, "test4");
+    }
+
+    #[rstest]
+    fn test_project_validation_produces_one_invalid_pair_for_no_image_no_label() {
+        let config: Config = serde_yml::from_str(
+            r#"
+                image_path: test_output/
+                label_path: test_output/
+                output_path: output/
+
+                output_format:
+                    type: yolo
+                    project_name: test_project
+                    folder_paths:
+                        train: ./train/
+                        validation: ./validation/
+                        test: ./test/
+                    class_map:
+                        0: 'first_class'
+                        1: 'not_first_class'
+                "#,
+        )
+        .unwrap();
+
+        let project = YoloProject::new(&config);
+
+        let test_output_path = "test_output/test_files5";
+        // Make the directory
+        let file1 = PathBuf::from(format!("{}/test5.txt", test_output_path));
+        fs::create_dir_all(file1.parent().unwrap()).expect("Unable to create directory");
+
+        let invalid_pairs = project.get_invalid_pairs();
+
+        assert!(invalid_pairs.is_empty())
     }
 }

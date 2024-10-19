@@ -27,17 +27,17 @@ fn main() {
 }
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>, project: Res<YoloProject>) {
-    let first_image = project.image_label_pairs.clone().unwrap().first().cloned();
+    let first_image = project.data.clone().pairs.into_iter().next();
 
-    println!("{:?}", first_image);
+    // println!("{:?}", first_image);
 
-    let image_path = first_image.unwrap().image_path.unwrap().clone();
+    // let image_path = first_image.unwrap().1;
 
-    commands.spawn(Camera2dBundle::default());
-    commands.spawn(SpriteBundle {
-        texture: asset_server.load(image_path),
-        ..default()
-    });
+    // commands.spawn(Camera2dBundle::default());
+    // commands.spawn(SpriteBundle {
+    //     texture: asset_server.load(image_path),
+    //     ..default()
+    // });
 }
 
 pub fn zoom_system(

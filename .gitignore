@@ -1,3 +1,5 @@
 /target
 output/
 input/
+test_output/*
+validation.json

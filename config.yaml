@@ -2,12 +2,22 @@ image_path: input/yolo_export/
 label_path: input/yolo_export/
 output_path: output/
 
+output_format:
+  type: yolo
+  project_name: spriter_sheet_ider
+  folder_paths:
+    train: ./train/
+    validation: ./validation/
+    test: ./test/
+  class_map:
+    0: 'horizontal_animation'
+    1: 'vertical_animation'
+
 settings:
   zoom_factor: 1.0
   pan_factor:
     x: 120.0
     y: 120.0
-
   key_map:
     zoom_in: 'KeyE'
     zoom_out: 'KeyQ'
@@ -25,13 +35,3 @@ settings:
     # toggle: 116
     # toggle_all
 
-  output_format:
-    type: yolo
-    project_name: spriter_sheet_ider
-    folder_paths:
-      train: ./train/
-      validation: ./validation/
-      test: ./test/
-    class_map:
-      0: 'horizontal_animation'
-      1: 'vertical_animation'
