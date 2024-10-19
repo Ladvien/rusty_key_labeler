@@ -1,7 +1,7 @@
-use std::collections::HashMap;
-
 use bevy::prelude::{KeyCode, Resource};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use yolo_io::YoloProjectConfig;
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct OutputFormat {
@@ -43,8 +43,7 @@ pub struct Settings {
 
 #[derive(Debug, Serialize, Deserialize, Resource)]
 pub struct Config {
-    pub image_path: String,
-    pub label_path: String,
+    pub project_config: YoloProjectConfig,
     pub output_path: String,
     pub output_format: OutputFormat,
     #[serde(default)]

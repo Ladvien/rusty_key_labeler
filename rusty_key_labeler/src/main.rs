@@ -1,9 +1,12 @@
 use bevy::prelude::*;
 mod settings;
-mod yolo_project;
-
 use settings::Config;
-use yolo_project::YoloProject;
+use yolo_io::{YoloProject, YoloProjectConfig};
+
+#[derive(Resource)]
+pub struct YoloProjectResource {
+    pub project: YoloProject,
+}
 
 fn main() {
     // Load YAML configuration file from file.
@@ -13,21 +16,25 @@ fn main() {
 
     // println!("{:#?}", config);
 
-    let mut project = YoloProject::new(&config);
-    let report = project.validate();
-    // project.load().expect("Unable to load project");
+    let mut project = YoloProject::new(&config.project_config);
+    let results = project.validate();
+
+    println!("{:#?}", results);
 
     App::new()
         .add_plugins(DefaultPlugins)
         .insert_resource(config)
-        .insert_resource(project)
+        // .insert_resource(project_resource)
         .add_systems(Startup, setup)
         .add_systems(Update, (zoom_system, translate_image_system))
         .run();
 }
 
-fn setup(mut commands: Commands, asset_server: Res<AssetServer>, project: Res<YoloProject>) {
-    let first_image = project.data.clone().pairs.into_iter().next();
+fn setup(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    project_resource: Res<YoloProjectResource>,
+) {
 
     // println!("{:?}", first_image);
 

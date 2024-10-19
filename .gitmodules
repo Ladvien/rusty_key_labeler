@@ -1,0 +1,3 @@
+[submodule "yolo_io"]
+	path = yolo_io
+	url = git@github.com:Ladvien/yolo_io.git
