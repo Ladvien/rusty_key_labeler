@@ -3,7 +3,6 @@ project_config:
   source_paths:
     images: rusty_key_labeler/input/yolo_export/
     labels: rusty_key_labeler/input/yolo_export/
-  output_format:
   type: yolo
   project_name: spriter_sheet_ider
   export_paths:
