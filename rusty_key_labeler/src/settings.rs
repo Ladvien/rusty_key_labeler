@@ -1,22 +1,6 @@
 use bevy::prelude::{KeyCode, Resource};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use yolo_io::YoloProjectConfig;
-
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
-pub struct OutputFormat {
-    pub r#type: String,
-    pub project_name: String,
-    pub folder_paths: FolderPaths,
-    pub class_map: HashMap<u32, String>,
-}
-
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
-pub struct FolderPaths {
-    pub train: String,
-    pub validation: String,
-    pub test: String,
-}
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct KeyMap {
@@ -45,19 +29,8 @@ pub struct Settings {
 pub struct Config {
     pub project_config: YoloProjectConfig,
     pub output_path: String,
-    pub output_format: OutputFormat,
     #[serde(default)]
     pub settings: Settings,
-}
-
-impl Default for FolderPaths {
-    fn default() -> Self {
-        Self {
-            train: "train".to_string(),
-            validation: "validation".to_string(),
-            test: "test".to_string(),
-        }
-    }
 }
 
 impl Default for KeyMap {
@@ -91,14 +64,16 @@ impl Default for Settings {
 
 #[cfg(test)]
 mod tests {
+    use yolo_io::ExportPaths;
+
     use super::*;
 
     #[test]
     fn test_default_folder_paths() {
-        let folder_paths = FolderPaths::default();
+        let folder_paths = ExportPaths::default();
         assert_eq!(
             folder_paths,
-            FolderPaths {
+            ExportPaths {
                 train: "train".to_string(),
                 validation: "validation".to_string(),
                 test: "test".to_string()

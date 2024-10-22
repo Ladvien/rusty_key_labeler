@@ -1,17 +1,22 @@
-image_path: input/yolo_export/
-label_path: input/yolo_export/
-output_path: output/
 
-output_format:
+project_config:
+  source_paths:
+    images: rusty_key_labeler/input/yolo_export/
+    labels: rusty_key_labeler/input/yolo_export/
+  output_format:
   type: yolo
   project_name: spriter_sheet_ider
-  folder_paths:
+  export_paths:
     train: ./train/
     validation: ./validation/
     test: ./test/
+  duplicate_tolerance: 0.005
   class_map:
     0: 'horizontal_animation'
     1: 'vertical_animation'
+  
+
+output_path: output/
 
 settings:
   zoom_factor: 1.0
