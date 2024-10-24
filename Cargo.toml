@@ -4,3 +4,5 @@ members = [
   "rusty_key_labeler",
   "yolo_io",
 ]
+
+resolver = "1"

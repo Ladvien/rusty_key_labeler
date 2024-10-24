@@ -1,9 +1,11 @@
+use std::{fs, io::Write};
+
 use bevy::prelude::*;
 mod settings;
 use settings::Config;
-use yolo_io::{YoloProject, YoloProjectConfig};
+use yolo_io::{YoloDataQualityReport, YoloProject, YoloProjectConfig};
 
-#[derive(Resource)]
+#[derive(Resource, Clone)]
 pub struct YoloProjectResource(YoloProject);
 
 fn main() {
@@ -15,12 +17,24 @@ fn main() {
 
     // println!("{:#?}", config);
 
-    let mut project = YoloProject::new(&config.project_config);
-    let results = project.validate();
+    let project = YoloProject::new(&config.project_config);
+    // let results = project
+
+    println!("Valid pairs: {:#?}", project.get_invalid_pairs());
+    let report = YoloDataQualityReport::generate(project.clone());
+
+    match report {
+        Some(report) => {
+            let mut file = fs::File::create("report.json").expect("Unable to create file");
+            file.write_all(report.as_bytes())
+                .expect("Unable to write data to file");
+        }
+        None => todo!(),
+    }
+
+    // println!("Report: {:#?}", report);
 
     let project_resource = YoloProjectResource(project);
-
-    println!("{:#?}", results);
 
     App::new()
         .add_plugins(DefaultPlugins)
