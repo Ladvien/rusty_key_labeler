@@ -30,3 +30,6 @@ output/
 input/
 test_output/*
 validation.json
+report.json
+
+test_data/

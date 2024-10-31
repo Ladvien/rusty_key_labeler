@@ -1,18 +1,25 @@
 
 project_config:
   source_paths:
-    images: rusty_key_labeler/input/yolo_export/
-    labels: rusty_key_labeler/input/yolo_export/
+    images: /Users/ladvien/rusty_key_labeler/rusty_key_labeler/test_data/input
+    labels: /Users/ladvien/rusty_key_labeler/rusty_key_labeler/test_data/input
   type: yolo
   project_name: spriter_sheet_ider
-  export_paths:
-    train: ./train/
-    validation: ./validation/
-    test: ./test/
-  duplicate_tolerance: 0.005
-  class_map:
-    0: 'horizontal_animation'
-    1: 'vertical_animation'
+  export:
+    paths:
+      root: ./rusty_key_labeler/test_data/export/
+      # TODO: Update paths to use root and relative paths.
+      train: ./rusty_key_labeler/test_data/export/train/
+      validation: ./rusty_key_labeler/test_data/export/validation/
+      test: ./rusty_key_labeler/test_data/export/test/
+    duplicate_tolerance: 0.005
+    class_map:
+      0: 'horizontal_animation'
+      1: 'vertical_animation'
+    split:
+      train: 0.80
+      validation: 0.20
+      test: 0.0 
   
 
 output_path: output/

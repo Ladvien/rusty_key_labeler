@@ -64,19 +64,20 @@ impl Default for Settings {
 
 #[cfg(test)]
 mod tests {
-    use yolo_io::ExportPaths;
+    use yolo_io::Paths;
 
     use super::*;
 
     #[test]
     fn test_default_folder_paths() {
-        let folder_paths = ExportPaths::default();
+        let folder_paths = Paths::default();
         assert_eq!(
             folder_paths,
-            ExportPaths {
+            Paths {
                 train: "train".to_string(),
                 validation: "validation".to_string(),
-                test: "test".to_string()
+                test: "test".to_string(),
+                root: "yolo".to_string()
             }
         );
     }
