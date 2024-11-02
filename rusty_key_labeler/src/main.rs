@@ -1,9 +1,9 @@
-use std::{fs, io::Write, path::PathBuf, string};
+use std::{fs, io::Write};
 
 use bevy::prelude::*;
 mod settings;
 use settings::Config;
-use yolo_io::{ImageLabelPair, YoloDataQualityReport, YoloProject, YoloProjectConfig};
+use yolo_io::{ImageLabelPair, YoloDataQualityReport, YoloProject};
 
 #[derive(Resource, Debug, Clone)]
 pub struct YoloProjectResource(YoloProject);
@@ -24,8 +24,9 @@ fn main() {
         std::fs::read_to_string("rusty_key_labeler/config.yaml").expect("Unable to read file");
     let config: Config = serde_yml::from_str(&data).expect("Unable to parse YAML");
     let project = YoloProject::new(&config.project_config);
+
     println!("Project: {:#?}", project);
-    let report = YoloDataQualityReport::generate(project.clone());
+    let report = YoloDataQualityReport::generate(project.clone().unwrap());
 
     match report {
         Some(report) => {
@@ -36,7 +37,7 @@ fn main() {
         None => todo!(),
     }
 
-    let project_resource = YoloProjectResource(project);
+    let project_resource = YoloProjectResource(project.unwrap());
 
     let app_data = AppData {
         index: 0,
