@@ -1,9 +1,20 @@
 use std::{fs, io::Write};
 
-use bevy::prelude::*;
+use bevy::{
+    color::palettes::css::RED,
+    prelude::*,
+    render::{
+        camera::RenderTarget,
+        render_resource::{
+            Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
+        },
+        view::RenderLayers,
+    },
+    sprite::{Material2d, MaterialMesh2dBundle, Mesh2d, Mesh2dHandle},
+};
 mod settings;
 use settings::Config;
-use yolo_io::{ImageLabelPair, YoloDataQualityReport, YoloProject};
+use yolo_io::{ImageLabelPair, YoloDataQualityReport, YoloFile, YoloProject};
 
 #[derive(Resource, Debug, Clone)]
 pub struct YoloProjectResource(YoloProject);
@@ -17,6 +28,14 @@ pub struct AppData {
 #[derive(Component)]
 pub struct CurrentImage;
 
+/*
+TODO: Resize image to fit window
+*/
+
+const PIXEL_PERFECT_LAYERS: RenderLayers = RenderLayers::layer(0);
+/// Render layers for high-resolution rendering.
+const HIGH_RES_LAYERS: RenderLayers = RenderLayers::layer(1);
+
 fn main() {
     // Load YAML configuration file from file.
     // https://github.com/sebastienrousseau/serde_yml
@@ -25,17 +44,16 @@ fn main() {
     let config: Config = serde_yml::from_str(&data).expect("Unable to parse YAML");
     let project = YoloProject::new(&config.project_config);
 
-    println!("Project: {:#?}", project);
-    let report = YoloDataQualityReport::generate(project.clone().unwrap());
+    // let report = YoloDataQualityReport::generate(project.clone().unwrap());
 
-    match report {
-        Some(report) => {
-            let mut file = fs::File::create("report.json").expect("Unable to create file");
-            file.write_all(report.as_bytes())
-                .expect("Unable to write data to file");
-        }
-        None => todo!(),
-    }
+    // match report {
+    //     Some(report) => {
+    //         let mut file = fs::File::create("report.json").expect("Unable to create file");
+    //         file.write_all(report.as_bytes())
+    //             .expect("Unable to write data to file");
+    //     }
+    //     None => todo!(),
+    // }
 
     let project_resource = YoloProjectResource(project.unwrap());
 
@@ -57,35 +75,108 @@ fn main() {
         .run();
 }
 
+#[derive(Debug, Clone)]
+pub struct BevyYoloFile(pub YoloFile);
+
+// Impl conversion of YoloFile to MaterialMesh2dBundle
+impl BevyYoloFile {
+    fn to_2d_bundle(
+        &self,
+        // image: &mut ResMut<Assets<Mesh>>,
+        meshes: &mut ResMut<Assets<Mesh>>,
+        materials: &mut ResMut<Assets<ColorMaterial>>,
+    ) -> Vec<MaterialMesh2dBundle<ColorMaterial>> {
+        let mut bundles = Vec::new();
+        let yolo_file = self.0.clone();
+
+        for entry in yolo_file.entries.iter() {
+            let x_center = entry.x_center;
+            let y_center = entry.y_center;
+            let width = entry.width;
+            let height = entry.height;
+
+            let rectangle_handle = Mesh2dHandle(meshes.add(Rectangle::new(width, height)));
+
+            let color_material = ColorMaterial::from_color(RED);
+
+            let bundle = MaterialMesh2dBundle {
+                mesh: rectangle_handle,
+                material: materials.add(color_material),
+                transform: Transform::from_xyz(x_center, y_center, 0.0),
+                ..Default::default()
+            };
+
+            bundles.push(bundle);
+        }
+
+        bundles
+    }
+}
+
+// WILO: Trying to load image, get size, and then draw bounding boxes
+//       to scale on the image.
 fn setup(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     project_resource: Res<YoloProjectResource>,
-    mut app_data: ResMut<AppData>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    mut images: ResMut<Assets<Image>>,
 ) {
     let valid_pairs = project_resource.0.get_valid_pairs();
-    println!("Valid pairs: {:#?}", valid_pairs.len());
 
     let first_image = valid_pairs.first().unwrap();
-    app_data.current_pair = Some(first_image.clone());
+    let image_handle: Handle<Image> = asset_server.load(first_image.image_path.clone().unwrap());
+
+    let label_file = first_image.label_file.clone().unwrap();
+    let bevy_yolo_file = BevyYoloFile(label_file);
+
+    // Get the size of the image
+    let image = images.get(&image_handle).unwrap();
+    let image_size = Vec2::new(image.width() as f32, image.height() as f32);
+
+    let shapes = bevy_yolo_file.to_2d_bundle(&mut meshes, &mut materials);
+
+    commands.spawn(Camera2dBundle::default());
+
+    commands.spawn(SpriteBundle {
+        // sprite: todo!(),
+        // transform: todo!(),
+        // global_transform: todo!(),
+        texture: image_handle,
+        // visibility: todo!(),
+        // inherited_visibility: todo!(),
+        // view_visibility: todo!(),
+        ..Default::default()
+    });
+}
+
+pub fn load_selected_image_system(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
+    mut app_data: ResMut<AppData>,
+    project_resource: Res<YoloProjectResource>,
+) {
+    let valid_pairs = project_resource.0.get_valid_pairs();
+    let selected_pair = valid_pairs.get(app_data.index).unwrap();
+    let selected_image = selected_pair.image_path.clone().unwrap();
+    let selected_image = selected_image.as_path().to_string_lossy().into_owned();
+
+    // Remove current image
+    for entity in commands.query::<Entity>().with::<CurrentImage>().iter() {
+        commands.entity(entity).despawn();
+    }
 
     commands.spawn((
         SpriteBundle {
-            texture: asset_server.load(
-                first_image
-                    .clone()
-                    .image_path
-                    .unwrap()
-                    .to_str()
-                    .unwrap()
-                    .to_string(),
-            ),
+            texture: asset_server.load(selected_image),
             ..Default::default()
         },
         CurrentImage,
     ));
 
-    commands.spawn(Camera2dBundle::default());
+    app_data.current_pair = Some(selected_pair.clone());
 }
 
 pub fn load_next_image_system(
