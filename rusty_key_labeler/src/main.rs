@@ -5,7 +5,7 @@ use std::path::Path;
 use bevy::{app, asset::LoadState, color::palettes::css::*, prelude::*};
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_prototype_lyon::shapes::RectangleOrigin;
-use bevy_vector_shapes::prelude::*;
+use bevy_vector_shapes::{prelude::*, render::ShapePipelineType};
 
 use settings::Config;
 use yolo_io::{ImageLabelPair, YoloFile, YoloProject};
@@ -254,22 +254,26 @@ fn paint_bounding_boxes_system(
             let scaled_width = entry.width * image_size.x;
             let scaled_height = entry.height * image_size.y;
 
+            let bounding_box_transform = Transform::from_translation(Vec3::new(
+                scaled_x_center - image_size.x / 2.,
+                (scaled_y_center - image_size.y / 2.) * -1.,
+                0.,
+            ));
+
+            let size = Vec2::new(scaled_width, scaled_height);
+
             let bounding_box_eid = commands
                 .spawn((
                     Name::new(format!("bounding_box_{}", index)),
                     ShapeBundle::rect(
                         &ShapeConfig {
                             color: WHITE.into(),
-                            transform: Transform::from_translation(Vec3::new(
-                                scaled_x_center - image_size.x / 2.,
-                                scaled_y_center - image_size.y / 2.,
-                                0.,
-                            )),
-                            origin: Some(Vec3::new(0., 0., 0.)),
-                            corner_radii: Vec4::splat(0.3),
-                            ..ShapeConfig::default_3d()
+                            transform: bounding_box_transform,
+                            hollow: true,
+                            // corner_radii: Vec4::splat(0.3),
+                            ..ShapeConfig::default_2d()
                         },
-                        Vec2::new(scaled_width, scaled_height),
+                        size,
                     ),
                     BoundingBox,
                 ))
