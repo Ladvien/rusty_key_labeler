@@ -12,3 +12,5 @@ serde = "1.0"
 serde_json = "1.0.129"
 serde_yml = "0.0.12"
 yolo_io = {path = "../yolo_io"}
+
+bevy_vector_shapes = "0.8.2"

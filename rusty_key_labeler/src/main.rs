@@ -1,20 +1,11 @@
 mod settings;
 
-use bevy::{
-    color::palettes::css::RED,
-    prelude::*,
-    render::{
-        camera::RenderTarget,
-        render_resource::{
-            Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
-        },
-        view::RenderLayers,
-    },
-    window::WindowResized,
-};
+use std::path::Path;
+
+use bevy::{app, asset::LoadState, color::palettes::css::*, prelude::*};
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
-use bevy_prototype_lyon::prelude::*;
-use std::fs;
+use bevy_prototype_lyon::shapes::RectangleOrigin;
+use bevy_vector_shapes::prelude::*;
 
 use settings::Config;
 use yolo_io::{ImageLabelPair, YoloFile, YoloProject};
@@ -25,16 +16,26 @@ pub struct YoloProjectResource(YoloProject);
 #[derive(Resource, Debug, Clone)]
 pub struct AppData {
     index: usize,
-    current_pair: Option<ImageLabelPair>,
+    // selection: Selection,
 }
 
-// const CANVAS_LAYER: RenderLayers = RenderLayers::layer(0);
-// const IMAGE_LAYER: RenderLayers = RenderLayers::layer(1);
-// const BOUNDING_BOX_LAYER: RenderLayers = RenderLayers::layer(2);
-const RESOLUTION_WIDTH: f32 = 1920.0;
-const RESOLUTION_HEIGHT: f32 = 1080.0;
+#[derive(Debug, Clone, Component)]
+pub struct Sized {
+    pub width: f32,
+    pub height: f32,
+}
 
-/*
+#[derive(Debug, Clone, Component)]
+pub struct ImageData {
+    pub path: String,
+    pub stem: String,
+    pub image: Handle<Image>,
+    pub width: f32,
+    pub height: f32,
+    pub yolo_file: YoloFile,
+}
+
+/*?
 TODO: Resize image to fit window
 */
 
@@ -59,18 +60,15 @@ fn main() {
 
     let project_resource = YoloProjectResource(project.unwrap());
 
-    let app_data = AppData {
-        index: 0,
-        current_pair: None,
-    };
+    let app_data = AppData { index: 0 };
 
     App::new()
         .init_resource::<Assets<ColorMaterial>>()
         .add_plugins((
             // DefaultPlugins,
-            ShapePlugin,
             DefaultPlugins.set(ImagePlugin::default_nearest()),
             WorldInspectorPlugin::new(),
+            Shape2dPlugin::default(),
         ))
         .insert_resource(config)
         .insert_resource(project_resource)
@@ -83,6 +81,8 @@ fn main() {
                 zoom_system,
                 translate_image_system,
                 load_next_image_system,
+                paint_bounding_boxes_system,
+                on_image_loaded_system,
                 // load_labels_for_image_system,
                 // fit_canvas_system,
             ),
@@ -93,223 +93,95 @@ fn main() {
 // #[derive(Debug, Clone, Component)]
 // pub struct BevyYoloFile(pub YoloFile);
 
-// Impl conversion of YoloFile to MaterialMesh2dBundle
+#[derive(Component)]
+pub struct ImageToLoad {
+    path: String,
+    yolo_file: YoloFile,
+}
 
 #[derive(Debug, Clone, Component)]
-pub struct Canvas;
-
-#[derive(Component)]
-pub struct ImageToLoad;
+pub struct SelectedImage;
 
 #[derive(Debug, Clone, Component)]
 pub struct BevyYoloFile(pub YoloFile);
 
-// #[derive(Debug, Clone, Component)]
-// pub struct YoloLabelBundle {
-//     spatial_bundle: SpatialBundle,
-//     rectangle: shapes::Rectangle,
-// }
-
 #[derive(Debug, Clone, Component)]
 pub struct CanvasCamera;
 
-// #[derive(Debug, Clone, Component)]
-// pub struct ImageCamera;
-
-// impl BevyYoloFile {
-//     fn to_rectangle(&self, image_size: Vec2) -> Vec<YoloLabelBundle> {
-//         let mut bundles: Vec<YoloLabelBundle> = Vec::new();
-//         let yolo_file = self.0.clone();
-
-//         for entry in yolo_file.entries.iter() {
-//             let scaled_x_center = entry.x_center * image_size.x;
-//             let scaled_y_center = entry.y_center * image_size.y;
-//             let scaled_width = entry.width * image_size.x;
-//             let scaled_height = entry.height * image_size.y; // Shape::Rectangle(Rectangle::new(80., 80.))
-
-//             // Create a 2d rectangle
-//             let spatial_rectangle_bundle = YoloLabelBundle {
-//                 spatial_bundle: SpatialBundle {
-//                     transform: Transform::from_translation(Vec3::new(
-//                         scaled_x_center,
-//                         scaled_y_center,
-//                         0.,
-//                     )),
-//                     visibility: Visibility::Visible,
-//                     ..Default::default()
-//                 },
-//                 rectangle: shapes::Rectangle {
-//                     extents: Vec2::new(scaled_width, scaled_height),
-//                     origin: shapes::RectangleOrigin::Center,
-//                 },
-//             };
-
-//             bundles.push(spatial_rectangle_bundle);
-//         }
-
-//         bundles
-//     }
-// }
-
-// WILO: Trying to load image, get size, and then draw bounding boxes
-//       to scale on the image.
-
 fn setup(
     mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    mut images: ResMut<Assets<Image>>,
+    mut app_data: ResMut<AppData>,
     project_resource: Res<YoloProjectResource>,
+    asset_server: Res<AssetServer>,
 ) {
-    let canvas_size = Extent3d {
-        width: RESOLUTION_WIDTH as u32,
-        height: RESOLUTION_HEIGHT as u32,
-        ..default()
-    };
-
-    let mut canvas = Image {
-        texture_descriptor: TextureDescriptor {
-            label: Some("canvas"),
-            size: canvas_size,
-            dimension: TextureDimension::D2,
-            format: TextureFormat::Bgra8UnormSrgb,
-            mip_level_count: 1,
-            sample_count: 1,
-            usage: TextureUsages::TEXTURE_BINDING
-                | TextureUsages::COPY_DST
-                | TextureUsages::RENDER_ATTACHMENT,
-            view_formats: &[],
-        },
-        ..default()
-    };
-
-    canvas.resize(canvas_size);
-    let canvas_handle = images.add(canvas);
-
-    // commands.spawn((
-    //     Name::new("canvas_camera"),
-    //     Camera2dBundle {
-    //         camera: Camera {
-    //             // render before the "main pass" camera
-    //             order: -1,
-    //             target: RenderTarget::Image(canvas_handle.clone()),
-    //             msaa_writeback: true,
-    //             ..default()
-    //         },
-    //         ..default()
-    //     },
-    //     CanvasCamera,
-    //     CANVAS_LAYER,
-    // ));
-
-    // Spawn the canvas
-    let canvas_eid = commands
-        .spawn((
-            Name::new("canvas"),
-            SpriteBundle {
-                texture: canvas_handle.clone(),
-                transform: Transform::from_translation(Vec3::new(
-                    RESOLUTION_WIDTH / 2.0,
-                    RESOLUTION_HEIGHT / 2.0,
-                    0.0,
-                )),
-                ..Default::default()
-            },
-            Canvas,
-        ))
-        .id();
-
-    // Load first image
+    app_data.index = 0;
     let valid_pairs = project_resource.0.get_valid_pairs();
-    let pair = valid_pairs.first().unwrap();
-    let image_handle: Handle<Image> = asset_server.load(pair.image_path.clone().unwrap());
+    let selected_pair = valid_pairs[0].clone();
 
-    let image_eid = commands
-        .spawn((
-            Name::new("image"),
-            SpriteBundle {
-                texture: image_handle.clone(),
-                transform: Transform::from_translation(Vec3::new(
-                    RESOLUTION_WIDTH / 2.0,
-                    RESOLUTION_HEIGHT / 2.0,
-                    1.0,
-                )),
-                ..Default::default()
-            },
-            ImageToLoad,
-        ))
-        .id();
+    let first_image = selected_pair.clone().image_path.unwrap();
+    let first_image_path = first_image.as_path().to_string_lossy().into_owned();
+    let image_handle = asset_server.load::<Image>(first_image_path.clone());
 
-    // Set the image as a child of the canvas
-    commands.entity(canvas_eid).push_children(&[image_eid]);
-
-    // Create a camera for the image
     commands.spawn((
-        Name::new("image_camera"),
-        Camera2dBundle {
-            camera: Camera {
-                // order: 0,
-                target: RenderTarget::Image(canvas_handle.clone()),
-                ..Default::default()
-            },
-            transform: Transform::from_translation(Vec3::new(
-                RESOLUTION_WIDTH / 2.0,
-                RESOLUTION_HEIGHT / 2.0,
-                100.0,
-            )),
+        Name::new("selected_image"),
+        SpriteBundle {
+            texture: image_handle.clone(),
+            transform: Transform::from_translation(Vec3::new(0., 0., 0.)),
             ..Default::default()
         },
-        CanvasCamera,
+        ImageToLoad {
+            path: first_image_path,
+            yolo_file: selected_pair.label_file.unwrap(),
+        },
     ));
+
+    // Load camera
+    commands.spawn((Name::new("main_camera"), Camera2dBundle::default()));
 }
 
-// pub fn load_labels_for_image_system(
-//     mut commands: Commands,
-//     asset_server: Res<AssetServer>,
-//     app_data: ResMut<AppData>,
-//     project_resource: Res<YoloProjectResource>,
-//     images: ResMut<Assets<Image>>,
-//     query: Query<Entity, With<ImageToLoad>>,
-// ) {
-//     for entity in query.iter() {
-//         println!("Loading labels for image");
-//         let valid_pairs = project_resource.0.get_valid_pairs();
-//         let pair = valid_pairs[app_data.index].clone();
+fn on_image_loaded_system(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    images: Res<Assets<Image>>,
+    query: Query<(Entity, &ImageToLoad), With<ImageToLoad>>,
+) {
+    // TODO: Clean up unwrap.
+    if let Some((entity, image_to_load)) = query.iter().next() {
+        let image_handle: Handle<Image> = asset_server.load(image_to_load.path.clone());
 
-//         let image_handle = asset_server
-//             .get_handle::<Image>(pair.image_path.clone().unwrap())
-//             .unwrap();
+        match asset_server.get_load_state(&image_handle) {
+            Some(state) => {
+                if state == LoadState::Loaded {
+                    // Remove ImageToLoad component and add SelectedImage component
+                    commands.entity(entity).remove::<ImageToLoad>();
+                    commands.entity(entity).insert(SelectedImage);
 
-//         if let Some(image) = images.get(&image_handle) {
-//             let image_size = Vec2::new(image.width() as f32, image.height() as f32);
+                    let file_stem = Path::new(&image_to_load.path)
+                        .file_stem()
+                        .unwrap()
+                        .to_string_lossy()
+                        .into_owned();
 
-//             let yolo_file = pair.label_file.unwrap();
-//             let yolo_file = BevyYoloFile(yolo_file);
+                    let image = images.get(&image_handle).unwrap();
 
-//             let bundles = yolo_file.to_rectangle(image_size);
+                    let image_data = ImageData {
+                        path: image_to_load.path.clone(),
+                        stem: file_stem,
+                        image: image_handle,
+                        width: image.width() as f32,
+                        height: image.height() as f32,
+                        yolo_file: image_to_load.yolo_file.clone(),
+                    };
 
-//             for (index, bundle) in bundles.iter().enumerate() {
-//                 println!("Spawning bundle");
-//                 println!("Bundle position: {:#?}", bundle);
-
-//                 let bundle = (
-//                     Name::new(format!("label_{}", index)),
-//                     ShapeBundle {
-//                         path: GeometryBuilder::build_as(&bundle.rectangle),
-//                         spatial: bundle.spatial_bundle.clone(),
-//                         ..Default::default()
-//                     },
-//                     // Fill::color(REBECCA_PURPLE),
-//                     Stroke::new(RED, 3.0),
-//                 );
-
-//                 commands.spawn(bundle);
-//             }
-
-//             // Remove ImageToLoad component
-//             commands.entity(entity).remove::<ImageToLoad>();
-//         }
-//     }
-// }
+                    commands.entity(entity).insert(image_data);
+                }
+            }
+            None => {
+                println!("Image not loaded");
+            }
+        }
+    }
+}
 
 pub fn load_next_image_system(
     mut commands: Commands,
@@ -318,46 +190,94 @@ pub fn load_next_image_system(
     mut app_data: ResMut<AppData>,
     project_resource: Res<YoloProjectResource>,
     query: Query<Entity, With<ImageToLoad>>,
+    query_selected_images: Query<Entity, With<SelectedImage>>,
 ) {
     if keyboard_input.just_pressed(KeyCode::ArrowRight) {
         println!("Loading next image");
+
+        // Despawn selected image
+        for entity in query_selected_images.iter() {
+            commands.entity(entity).despawn_recursive();
+        }
+
+        let valid_pairs = project_resource.0.get_valid_pairs();
+        let next_index = app_data.index + 1;
+        if next_index < valid_pairs.len() {
+            let next_image = valid_pairs[next_index].clone().image_path.unwrap();
+            let next_image = next_image.as_path().to_string_lossy().into_owned();
+            commands.spawn((
+                Name::new("selected_image"),
+                SpriteBundle {
+                    texture: asset_server.load::<Image>(next_image.clone()),
+                    transform: Transform::from_translation(Vec3::new(0., 0., 0.)),
+                    ..Default::default()
+                },
+                ImageToLoad {
+                    path: next_image,
+                    yolo_file: valid_pairs[next_index].label_file.clone().unwrap(),
+                },
+            ));
+            app_data.index = next_index;
+        }
 
         // Remove ImageToLoad component
         for entity in query.iter() {
             commands.entity(entity).despawn();
         }
-
-        load_next_image(
-            &mut commands,
-            &asset_server,
-            &mut app_data,
-            &project_resource,
-        );
-
-        println!("Current pair: {:#?}", app_data.current_pair);
     }
 }
 
-fn load_next_image(
-    commands: &mut Commands,
-    asset_server: &Res<AssetServer>,
-    app_data: &mut ResMut<AppData>,
-    project_resource: &Res<YoloProjectResource>,
+#[derive(Debug, Clone, Component)]
+pub struct BoundingBox;
+
+fn paint_bounding_boxes_system(
+    mut commands: Commands,
+    images: Res<Assets<Image>>,
+    query: Query<(Entity, &ImageData), With<SelectedImage>>,
+    old_bounding_boxes: Query<Entity, With<BoundingBox>>,
 ) {
-    let valid_pairs = project_resource.0.get_valid_pairs();
-    let next_index = app_data.index + 1;
-    if next_index < valid_pairs.len() {
-        let next_image = valid_pairs[next_index].clone().image_path.unwrap();
-        let next_image = next_image.as_path().to_string_lossy().into_owned();
-        commands.spawn((
-            SpriteBundle {
-                texture: asset_server.load(next_image),
-                ..Default::default()
-            },
-            ImageToLoad,
-        ));
-        app_data.index = next_index;
-        app_data.current_pair = Some(valid_pairs[next_index].clone());
+    // TODO: Kludge. Fix this.
+    let num_bounding_boxes = old_bounding_boxes.iter().count();
+    if num_bounding_boxes > 0 {
+        return;
+    }
+
+    let mut children = Vec::new();
+
+    if let Some((image_eid, image_data)) = query.iter().next() {
+        let image = images.get(&image_data.image).unwrap();
+        let image_size = Vec2::new(image.width() as f32, image.height() as f32);
+
+        for (index, entry) in image_data.yolo_file.entries.iter().enumerate() {
+            let scaled_x_center = entry.x_center * image_size.x;
+            let scaled_y_center = entry.y_center * image_size.y;
+            let scaled_width = entry.width * image_size.x;
+            let scaled_height = entry.height * image_size.y;
+
+            let bounding_box_eid = commands
+                .spawn((
+                    Name::new(format!("bounding_box_{}", index)),
+                    ShapeBundle::rect(
+                        &ShapeConfig {
+                            color: WHITE.into(),
+                            transform: Transform::from_translation(Vec3::new(
+                                scaled_x_center - image_size.x / 2.,
+                                scaled_y_center - image_size.y / 2.,
+                                0.,
+                            )),
+                            origin: Some(Vec3::new(0., 0., 0.)),
+                            corner_radii: Vec4::splat(0.3),
+                            ..ShapeConfig::default_3d()
+                        },
+                        Vec2::new(scaled_width, scaled_height),
+                    ),
+                    BoundingBox,
+                ))
+                .id();
+
+            children.push(bounding_box_eid);
+        }
+        commands.entity(image_eid).push_children(&children);
     }
 }
 
@@ -381,7 +301,7 @@ pub fn zoom_system(
 }
 
 pub fn translate_image_system(
-    mut query: Query<&mut Transform, With<Sprite>>,
+    mut query: Query<&mut Transform, With<SelectedImage>>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
     config: Res<Config>,
