@@ -1,4 +1,5 @@
 use bevy::{
+    color::Srgba,
     prelude::{KeyCode, Resource},
     utils::HashMap,
 };
@@ -25,6 +26,7 @@ pub struct PanFactor {
 pub struct BoundingBox {
     pub thickness: f32,
     pub corner_radius: f32,
+    pub class_color_map: HashMap<String, String>,
 }
 
 impl Default for BoundingBox {
@@ -32,6 +34,7 @@ impl Default for BoundingBox {
         Self {
             thickness: 1.0,
             corner_radius: 0.3,
+            class_color_map: HashMap::new(),
         }
     }
 }

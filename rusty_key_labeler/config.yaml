@@ -33,6 +33,10 @@ settings:
   bounding_boxes:
     thickness: 5
     corner_radius: 5.0
+    class_color_map:
+      # RGBA Color
+      horizontal_animation: (0, 255, 0, 255)
+      vertical_animation: (0, 0, 255, 255)
   key_map:
     zoom_in: 'KeyE'
     zoom_out: 'KeyQ'
@@ -49,6 +53,8 @@ settings:
     # redo: 114
     # toggle: 116
     # toggle_all
+
+
 
 
 

@@ -157,18 +157,36 @@ pub fn next_and_previous_system(
     }
 }
 
+fn srgba_string_to_color(srgba_string: &str) -> Option<Color> {
+    let rgba: Vec<&str> = srgba_string
+        .trim_matches(|p| p == '(' || p == ')')
+        .split(',')
+        .map(|s| s.trim())
+        .collect();
+
+    let red = rgba[0].parse::<u8>().ok()?;
+    let green = rgba[1].parse::<u8>().ok()?;
+    let blue = rgba[2].parse::<u8>().ok()?;
+    let alpha = rgba[3].parse::<u8>().ok()?;
+
+    Some(Color::srgba_u8(red, green, blue, alpha))
+}
+
 pub fn paint_bounding_boxes_system(
     mut commands: Commands,
     images: Res<Assets<Image>>,
     query: Query<(Entity, &ImageData), With<SelectedImage>>,
     old_bounding_boxes: Query<Entity, With<BoundingBox>>,
     config: Res<Config>,
+    project_resource: Res<YoloProjectResource>,
 ) {
     // TODO: Kludge. Fix this.
     let num_bounding_boxes = old_bounding_boxes.iter().count();
     if num_bounding_boxes > 0 {
         return;
     }
+
+    let class_color_map = config.settings.bounding_boxes.class_color_map.clone();
 
     let mut children = Vec::new();
 
@@ -192,25 +210,32 @@ pub fn paint_bounding_boxes_system(
 
             let bounding_box_settings = config.settings.bounding_boxes.clone();
 
-            let bounding_box_eid = commands
-                .spawn((
-                    Name::new(format!("bounding_box_{}", index)),
-                    ShapeBundle::rect(
-                        &ShapeConfig {
-                            color: Color::srgba_u8(255, 66, 66, 255),
-                            transform: bounding_box_transform,
-                            hollow: true,
-                            thickness: bounding_box_settings.thickness,
-                            // corner_radii: Vec4::splat(0.3),
-                            ..ShapeConfig::default_2d()
-                        },
-                        size,
-                    ),
-                    BoundingBox,
-                ))
-                .id();
+            let class_names_map = project_resource.0.config.export.class_map.clone();
+            let class_name = class_names_map[&entry.class].clone();
+            let class_color_string = class_color_map[&class_name].clone();
 
-            children.push(bounding_box_eid);
+            if let Some(class_color) = srgba_string_to_color(&class_color_string) {
+                println!("Color: {:?}", class_color);
+                let bounding_box_eid = commands
+                    .spawn((
+                        Name::new(format!("bounding_box_{}", index)),
+                        ShapeBundle::rect(
+                            &ShapeConfig {
+                                color: class_color,
+                                transform: bounding_box_transform,
+                                hollow: true,
+                                thickness: bounding_box_settings.thickness,
+                                // corner_radii: Vec4::splat(0.3),
+                                ..ShapeConfig::default_2d()
+                            },
+                            size,
+                        ),
+                        BoundingBox,
+                    ))
+                    .id();
+
+                children.push(bounding_box_eid);
+            }
         }
         commands.entity(image_eid).push_children(&children);
     }
