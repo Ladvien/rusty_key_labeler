@@ -1,4 +1,7 @@
-use bevy::prelude::{KeyCode, Resource};
+use bevy::{
+    prelude::{KeyCode, Resource},
+    utils::HashMap,
+};
 use serde::{Deserialize, Serialize};
 use yolo_io::YoloProjectConfig;
 
@@ -19,18 +22,26 @@ pub struct PanFactor {
 }
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+pub struct BoundingBox {
+    pub thickness: f32,
+    pub corner_radius: f32,
+}
+
+impl Default for BoundingBox {
+    fn default() -> Self {
+        Self {
+            thickness: 1.0,
+            corner_radius: 0.3,
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct Settings {
     pub zoom_factor: f32,
     pub pan_factor: PanFactor,
     pub key_map: KeyMap,
-}
-
-#[derive(Debug, Serialize, Deserialize, Resource)]
-pub struct Config {
-    pub project_config: YoloProjectConfig,
-    pub output_path: String,
-    #[serde(default)]
-    pub settings: Settings,
+    pub bounding_boxes: BoundingBox,
 }
 
 impl Default for KeyMap {
@@ -58,6 +69,7 @@ impl Default for Settings {
             zoom_factor: 1.0,
             pan_factor: PanFactor::default(),
             key_map: KeyMap::default(),
+            bounding_boxes: BoundingBox::default(),
         }
     }
 }
@@ -112,7 +124,8 @@ mod tests {
             Settings {
                 zoom_factor: 1.0,
                 pan_factor: PanFactor::default(),
-                key_map: KeyMap::default()
+                key_map: KeyMap::default(),
+                bounding_boxes: BoundingBox::default()
             }
         );
     }

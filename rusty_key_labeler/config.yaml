@@ -16,6 +16,7 @@ project_config:
     class_map:
       0: 'horizontal_animation'
       1: 'vertical_animation'
+      
     split:
       train: 0.80
       validation: 0.20
@@ -27,8 +28,11 @@ output_path: output/
 settings:
   zoom_factor: 1.0
   pan_factor:
-    x: 120.0
-    y: 120.0
+    x: 420.0
+    y: 420.0
+  bounding_boxes:
+    thickness: 5
+    corner_radius: 5.0
   key_map:
     zoom_in: 'KeyE'
     zoom_out: 'KeyQ'
@@ -45,4 +49,6 @@ settings:
     # redo: 114
     # toggle: 116
     # toggle_all
+
+
 
