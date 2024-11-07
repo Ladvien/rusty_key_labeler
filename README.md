@@ -8,7 +8,8 @@ A Rust YOLO Labeler with a focus on pure keyboard
 
 ## TODO
 - [x] Circular rotation of image index
-
+- [ ] Add UI
+- [ ] Bubble up errors to UI
 - [ ] Highlight selected bounding box
 - [ ] Cmd+Z
 - [ ] HUD

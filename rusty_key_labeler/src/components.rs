@@ -1,6 +1,19 @@
 use bevy::prelude::*;
 use yolo_io::YoloFile;
 
+use crate::settings::{TopLeftPosition, UiPanelSize};
+
+// Create a generic component to flag
+// changed entities.
+// #[derive(Debug, Clone, Component)]
+// pub struct Updated<T: Component + Send + Sync>(pub T);
+
+// impl<T: Component + Send + Sync> Updated<T> {
+//     pub fn new(data: T) -> Self {
+//         Self(data)
+//     }
+// }
+
 #[derive(Debug, Clone, Component)]
 pub struct ImageData {
     pub path: String,

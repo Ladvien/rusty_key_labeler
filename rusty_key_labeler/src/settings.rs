@@ -1,10 +1,7 @@
-use bevy::{
-    color::Srgba,
-    prelude::{KeyCode, Resource},
-    utils::HashMap,
-};
+use bevy::{color::Color, prelude::KeyCode, utils::HashMap};
 use serde::{Deserialize, Serialize};
-use yolo_io::YoloProjectConfig;
+
+use crate::utils::srgba_string_to_color;
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct KeyMap {
@@ -40,11 +37,65 @@ impl Default for BoundingBox {
 }
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+pub struct TopLeftPosition {
+    pub x: usize,
+    pub y: usize,
+}
+
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+pub struct UiPanelSize {
+    pub width: f32,
+    pub height: f32,
+}
+
+#[derive(Debug, PartialEq, Clone, Serialize)]
+pub struct UiPanelSettings {
+    pub top_left_position: TopLeftPosition,
+    pub color: Color,
+    #[serde(rename = "size")]
+    pub size: UiPanelSize,
+}
+
+impl<'de> Deserialize<'de> for UiPanelSettings {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(Debug, Deserialize)]
+        struct UiPanelSettingsHelper {
+            size: Option<UiPanelSize>,
+            color: Option<String>,
+            top_left_position: Option<TopLeftPosition>,
+        }
+
+        let helper = UiPanelSettingsHelper::deserialize(deserializer)?;
+        let color =
+            srgba_string_to_color(&helper.color.unwrap_or("rgba(0, 0, 128, 128)".to_string()))
+                .ok_or_else(|| serde::de::Error::custom("Invalid color"))?;
+
+        let ui_panel_settings = UiPanelSettings {
+            size: helper.size.unwrap_or(UiPanelSize {
+                width: 0.2,
+                height: 0.15,
+            }),
+            color,
+            top_left_position: helper
+                .top_left_position
+                .unwrap_or(TopLeftPosition { x: 0, y: 0 }),
+        };
+
+        println!("{:#?}", ui_panel_settings);
+        Ok(ui_panel_settings)
+    }
+}
+
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct Settings {
     pub zoom_factor: f32,
     pub pan_factor: PanFactor,
     pub key_map: KeyMap,
     pub bounding_boxes: BoundingBox,
+    pub ui_panel: UiPanelSettings,
 }
 
 impl Default for KeyMap {
@@ -73,6 +124,14 @@ impl Default for Settings {
             pan_factor: PanFactor::default(),
             key_map: KeyMap::default(),
             bounding_boxes: BoundingBox::default(),
+            ui_panel: UiPanelSettings {
+                size: UiPanelSize {
+                    width: 0.2,
+                    height: 0.15,
+                },
+                color: Color::srgba_u8(0, 0, 128, 128),
+                top_left_position: TopLeftPosition { x: 0, y: 0 },
+            },
         }
     }
 }
@@ -128,7 +187,15 @@ mod tests {
                 zoom_factor: 1.0,
                 pan_factor: PanFactor::default(),
                 key_map: KeyMap::default(),
-                bounding_boxes: BoundingBox::default()
+                bounding_boxes: BoundingBox::default(),
+                ui_panel: UiPanelSettings {
+                    color: Color::srgba_u8(0, 0, 128, 128),
+                    top_left_position: TopLeftPosition { x: 0, y: 0 },
+                    size: UiPanelSize {
+                        width: 0.2,
+                        height: 0.15
+                    }
+                }
             }
         );
     }

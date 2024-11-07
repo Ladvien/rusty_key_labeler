@@ -1,14 +1,11 @@
-use bevy::{
-    asset::LoadState,
-    color::palettes::{css::*, tailwind::RED_950},
-    core_pipeline::bloom::BloomSettings,
-    prelude::*,
-};
+use bevy::{asset::LoadState, prelude::*, window::WindowResized};
 use bevy_vector_shapes::prelude::*;
 use std::path::Path;
 
 use crate::{
     resources::{AppData, YoloProjectResource},
+    ui::{UiDataChanged, UiPanel, UI},
+    utils::{get_bounding_box_transform, scale_dimensions, srgba_string_to_color},
     BoundingBox, Config, ImageData, ImageToLoad, SelectedImage,
 };
 
@@ -56,6 +53,61 @@ pub fn setup(
         //     ..Default::default()
         // },
     ));
+}
+
+pub fn on_resize_system(
+    commands: Commands,
+    resize_reader: EventReader<WindowResized>,
+    window: Query<&Window>,
+    mut ui: ResMut<UI>,
+) {
+    if resize_reader.is_empty() {
+        return;
+    }
+
+    if window.iter().count() > 1 {
+        panic!("More than one window found");
+    }
+
+    let window = window.single();
+    ui.on_window_resize(commands, window);
+}
+
+pub fn setup_ui(mut commands: Commands, ui: Res<UI>) {
+    commands.spawn(ui.get_ui_bundle());
+}
+
+pub fn update_ui_panel(
+    mut commands: Commands,
+    mut change_flag: Query<Entity, With<UiDataChanged>>,
+    mut old_ui: Query<Entity, With<UiPanel>>,
+    ui: Res<UI>,
+    window: Query<&Window>,
+) {
+    if change_flag.iter().count() == 0 {
+        return;
+    }
+
+    if window.iter().count() > 1 {
+        panic!("More than one window found");
+    }
+
+    if change_flag.iter().count() > 1 {
+        panic!("More than one UI panel found");
+    }
+
+    // Despawn the change flag
+    for ui_panel in change_flag.iter_mut() {
+        commands.entity(ui_panel).despawn_recursive();
+    }
+
+    // Despawn the UI panel
+    for ui_panel in old_ui.iter_mut() {
+        commands.entity(ui_panel).despawn_recursive();
+    }
+
+    println!("Updating UI panel");
+    commands.spawn(ui.get_ui_bundle());
 }
 
 pub fn on_image_loaded_system(
@@ -157,21 +209,6 @@ pub fn next_and_previous_system(
     }
 }
 
-fn srgba_string_to_color(srgba_string: &str) -> Option<Color> {
-    let rgba: Vec<&str> = srgba_string
-        .trim_matches(|p| p == '(' || p == ')')
-        .split(',')
-        .map(|s| s.trim())
-        .collect();
-
-    let red = rgba[0].parse::<u8>().ok()?;
-    let green = rgba[1].parse::<u8>().ok()?;
-    let blue = rgba[2].parse::<u8>().ok()?;
-    let alpha = rgba[3].parse::<u8>().ok()?;
-
-    Some(Color::srgba_u8(red, green, blue, alpha))
-}
-
 pub fn paint_bounding_boxes_system(
     mut commands: Commands,
     images: Res<Assets<Image>>,
@@ -180,42 +217,37 @@ pub fn paint_bounding_boxes_system(
     config: Res<Config>,
     project_resource: Res<YoloProjectResource>,
 ) {
-    // TODO: Kludge. Fix this.
-    let num_bounding_boxes = old_bounding_boxes.iter().count();
-    if num_bounding_boxes > 0 {
+    if old_bounding_boxes.iter().count() > 0 {
         return;
     }
 
     let class_color_map = config.settings.bounding_boxes.class_color_map.clone();
-
     let mut children = Vec::new();
 
     if let Some((image_eid, image_data)) = query.iter().next() {
         let image = images.get(&image_data.image).unwrap();
         let image_size = Vec2::new(image.width() as f32, image.height() as f32);
+        let bounding_box_settings = config.settings.bounding_boxes.clone();
 
         for (index, entry) in image_data.yolo_file.entries.iter().enumerate() {
-            let scaled_x_center = entry.x_center * image_size.x;
-            let scaled_y_center = entry.y_center * image_size.y;
-            let scaled_width = entry.width * image_size.x;
-            let scaled_height = entry.height * image_size.y;
+            let (scaled_x_center, scaled_y_center, scaled_width, scaled_height) = scale_dimensions(
+                entry.x_center,
+                entry.y_center,
+                entry.width,
+                entry.height,
+                image_size,
+            );
 
-            let bounding_box_transform = Transform::from_translation(Vec3::new(
-                scaled_x_center - image_size.x / 2.,
-                (scaled_y_center - image_size.y / 2.) * -1.,
-                0.,
-            ));
+            let bounding_box_transform =
+                get_bounding_box_transform(scaled_x_center, scaled_y_center, image_size);
 
             let size = Vec2::new(scaled_width, scaled_height);
-
-            let bounding_box_settings = config.settings.bounding_boxes.clone();
 
             let class_names_map = project_resource.0.config.export.class_map.clone();
             let class_name = class_names_map[&entry.class].clone();
             let class_color_string = class_color_map[&class_name].clone();
 
             if let Some(class_color) = srgba_string_to_color(&class_color_string) {
-                println!("Color: {:?}", class_color);
                 let bounding_box_eid = commands
                     .spawn((
                         Name::new(format!("bounding_box_{}", index)),
@@ -225,7 +257,7 @@ pub fn paint_bounding_boxes_system(
                                 transform: bounding_box_transform,
                                 hollow: true,
                                 thickness: bounding_box_settings.thickness,
-                                // corner_radii: Vec4::splat(0.3),
+                                corner_radii: Vec4::splat(bounding_box_settings.corner_radius),
                                 ..ShapeConfig::default_2d()
                             },
                             size,
