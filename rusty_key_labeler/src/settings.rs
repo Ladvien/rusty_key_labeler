@@ -1,7 +1,10 @@
-use bevy::{color::Color, prelude::KeyCode, utils::HashMap};
+use bevy::{color::Color, prelude::KeyCode, render::view::RenderLayers, utils::HashMap};
 use serde::{Deserialize, Serialize};
 
 use crate::utils::srgba_string_to_color;
+
+pub const MAIN_LAYER: RenderLayers = RenderLayers::layer(0);
+pub const UI_LAYER: RenderLayers = RenderLayers::layer(1);
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct KeyMap {
@@ -38,8 +41,8 @@ impl Default for BoundingBox {
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct TopLeftPosition {
-    pub x: usize,
-    pub y: usize,
+    pub x: i32,
+    pub y: i32,
 }
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
@@ -84,7 +87,6 @@ impl<'de> Deserialize<'de> for UiPanelSettings {
                 .unwrap_or(TopLeftPosition { x: 0, y: 0 }),
         };
 
-        println!("{:#?}", ui_panel_settings);
         Ok(ui_panel_settings)
     }
 }

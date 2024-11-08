@@ -44,8 +44,8 @@ settings:
       x: 0
       y: 0
     size:
-      width: 200
-      height: 100
+      width: 400
+      height: 200
 
   key_map:
     zoom_in: 'KeyE'

@@ -35,3 +35,9 @@ pub struct SelectedImage;
 
 #[derive(Debug, Clone, Component)]
 pub struct BoundingBox;
+
+#[derive(Debug, Clone, Component)]
+pub struct MainCamera;
+
+#[derive(Debug, Clone, Component)]
+pub struct UiCamera;

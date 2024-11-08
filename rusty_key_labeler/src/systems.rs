@@ -4,9 +4,10 @@ use std::path::Path;
 
 use crate::{
     resources::{AppData, YoloProjectResource},
+    settings::{MAIN_LAYER, UI_LAYER},
     ui::{UiDataChanged, UiPanel, UI},
     utils::{get_bounding_box_transform, scale_dimensions, srgba_string_to_color},
-    BoundingBox, Config, ImageData, ImageToLoad, SelectedImage,
+    BoundingBox, Config, ImageData, ImageToLoad, MainCamera, SelectedImage, UiCamera,
 };
 
 pub fn setup(
@@ -34,6 +35,7 @@ pub fn setup(
             path: first_image_path,
             yolo_file: selected_pair.label_file.unwrap(),
         },
+        MAIN_LAYER,
     ));
 
     // Load camera
@@ -52,6 +54,23 @@ pub fn setup(
         //     high_pass_frequency: 0.1,
         //     ..Default::default()
         // },
+        MAIN_LAYER,
+        MainCamera,
+    ));
+
+    commands.spawn((
+        Name::new("ui_camera"),
+        Camera2dBundle {
+            camera: Camera {
+                // Render the UI on top of everything else.
+                order: 1,
+                ..default()
+            },
+            transform: Transform::from_xyz(0., 0., 10.).looking_at(Vec3::ZERO, Vec3::Y),
+            ..default()
+        },
+        UI_LAYER,
+        UiCamera,
     ));
 }
 
@@ -106,7 +125,6 @@ pub fn update_ui_panel(
         commands.entity(ui_panel).despawn_recursive();
     }
 
-    println!("Updating UI panel");
     commands.spawn(ui.get_ui_bundle());
 }
 
@@ -199,6 +217,7 @@ pub fn next_and_previous_system(
                 path: next_image,
                 yolo_file: valid_pairs[index as usize].label_file.clone().unwrap(),
             },
+            MAIN_LAYER,
         ));
         app_data.index = index;
     }
@@ -263,6 +282,7 @@ pub fn paint_bounding_boxes_system(
                             size,
                         ),
                         BoundingBox,
+                        MAIN_LAYER,
                     ))
                     .id();
 
@@ -274,11 +294,14 @@ pub fn paint_bounding_boxes_system(
 }
 
 pub fn zoom_system(
-    mut query: Query<&mut OrthographicProjection, With<Camera>>,
+    mut query: Query<&mut OrthographicProjection, With<MainCamera>>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
     config: Res<Config>,
+    mut ui: ResMut<UI>,
 ) {
+    // TODO: I need to figure out how to separate the UI from the camera zoom.
+    //       maybe layers?
     for mut projection in query.iter_mut() {
         let mut log_scale = projection.scale.ln();
 
