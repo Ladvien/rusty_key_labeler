@@ -1,3 +1,4 @@
+mod bounding_boxes;
 mod components;
 mod resources;
 mod settings;
@@ -5,15 +6,15 @@ mod systems;
 mod ui;
 mod utils;
 
-use bevy::{prelude::*, render::view::RenderLayers, utils::HashMap};
+use bevy::prelude::*;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_vector_shapes::prelude::*;
 
+use bounding_boxes::BoundingBoxPainter;
 use components::*;
 use resources::*;
 use systems::*;
 use ui::{UiData, UI};
-use utils::get_class_color_map;
 use yolo_io::YoloProject;
 
 fn main() {
@@ -37,19 +38,17 @@ fn main() {
 
     let project_resource = YoloProjectResource(project.unwrap());
 
-    let color_map = config.settings.bounding_boxes.class_color_map.clone();
-
-    if color_map.len() == 0 {
-        // 1. Determine how many classes are in the project.
-        config.settings.bounding_boxes.class_color_map = get_class_color_map(&project_resource);
-    }
-
     let ui_data = UiData {
         size: config.settings.ui_panel.size.clone(),
         top_left_position: config.settings.ui_panel.top_left_position.clone(),
         color: config.settings.ui_panel.color,
     };
     let ui = UI::new(ui_data);
+
+    let bb_painter = BoundingBoxPainter::new(
+        &config.settings.bounding_boxes,
+        &config.project_config.export.class_map,
+    );
 
     let app_data = AppData { index: 0 };
 
@@ -62,6 +61,7 @@ fn main() {
         ))
         .insert_resource(config)
         .insert_resource(ui)
+        .insert_resource(bb_painter)
         .insert_resource(project_resource)
         .insert_resource(app_data)
         .add_systems(Startup, (setup, setup_ui))

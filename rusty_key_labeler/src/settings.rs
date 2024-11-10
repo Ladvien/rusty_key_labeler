@@ -1,7 +1,7 @@
-use bevy::{color::Color, prelude::KeyCode, render::view::RenderLayers, utils::HashMap};
+use bevy::{color::Color, prelude::KeyCode, render::view::RenderLayers};
 use serde::{Deserialize, Serialize};
 
-use crate::utils::srgba_string_to_color;
+use crate::{bounding_boxes::BoundingBoxSettings, utils::srgba_string_to_color};
 
 pub const MAIN_LAYER: RenderLayers = RenderLayers::layer(0);
 pub const UI_LAYER: RenderLayers = RenderLayers::layer(1);
@@ -20,23 +20,6 @@ pub struct KeyMap {
 pub struct PanFactor {
     pub x: f32,
     pub y: f32,
-}
-
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
-pub struct BoundingBox {
-    pub thickness: f32,
-    pub corner_radius: f32,
-    pub class_color_map: HashMap<String, String>,
-}
-
-impl Default for BoundingBox {
-    fn default() -> Self {
-        Self {
-            thickness: 1.0,
-            corner_radius: 0.3,
-            class_color_map: HashMap::new(),
-        }
-    }
 }
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
@@ -96,7 +79,7 @@ pub struct Settings {
     pub zoom_factor: f32,
     pub pan_factor: PanFactor,
     pub key_map: KeyMap,
-    pub bounding_boxes: BoundingBox,
+    pub bounding_boxes: BoundingBoxSettings,
     pub ui_panel: UiPanelSettings,
 }
 
@@ -125,7 +108,7 @@ impl Default for Settings {
             zoom_factor: 1.0,
             pan_factor: PanFactor::default(),
             key_map: KeyMap::default(),
-            bounding_boxes: BoundingBox::default(),
+            bounding_boxes: BoundingBoxSettings::default(),
             ui_panel: UiPanelSettings {
                 size: UiPanelSize {
                     width: 0.2,
@@ -189,7 +172,7 @@ mod tests {
                 zoom_factor: 1.0,
                 pan_factor: PanFactor::default(),
                 key_map: KeyMap::default(),
-                bounding_boxes: BoundingBox::default(),
+                bounding_boxes: BoundingBoxSettings::default(),
                 ui_panel: UiPanelSettings {
                     color: Color::srgba_u8(0, 0, 128, 128),
                     top_left_position: TopLeftPosition { x: 0, y: 0 },

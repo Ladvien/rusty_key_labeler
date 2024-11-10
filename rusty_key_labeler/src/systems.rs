@@ -1,13 +1,12 @@
 use bevy::{asset::LoadState, prelude::*, window::WindowResized};
-use bevy_vector_shapes::prelude::*;
 use std::path::Path;
 
 use crate::{
+    bounding_boxes::{BoundingBoxMarker, BoundingBoxPainter},
     resources::{AppData, YoloProjectResource},
     settings::{MAIN_LAYER, UI_LAYER},
     ui::{UiDataChanged, UiPanel, UI},
-    utils::{get_bounding_box_transform, scale_dimensions, srgba_string_to_color},
-    BoundingBox, Config, ImageData, ImageToLoad, MainCamera, SelectedImage, UiCamera,
+    Config, ImageData, ImageToLoad, MainCamera, SelectedImage, UiCamera,
 };
 
 pub fn setup(
@@ -232,64 +231,36 @@ pub fn paint_bounding_boxes_system(
     mut commands: Commands,
     images: Res<Assets<Image>>,
     query: Query<(Entity, &ImageData), With<SelectedImage>>,
-    old_bounding_boxes: Query<Entity, With<BoundingBox>>,
-    config: Res<Config>,
+    old_bounding_boxes: Query<Entity, With<BoundingBoxMarker>>,
     project_resource: Res<YoloProjectResource>,
+    bb_painter: Res<BoundingBoxPainter>,
+    app_data: Res<AppData>,
 ) {
     if old_bounding_boxes.iter().count() > 0 {
         return;
     }
 
-    let class_color_map = config.settings.bounding_boxes.class_color_map.clone();
-    let mut children = Vec::new();
+    println!("Index: {:#?}", app_data.index);
 
-    if let Some((image_eid, image_data)) = query.iter().next() {
-        let image = images.get(&image_data.image).unwrap();
-        let image_size = Vec2::new(image.width() as f32, image.height() as f32);
-        let bounding_box_settings = config.settings.bounding_boxes.clone();
+    if let Some(yolo_file) = project_resource
+        .0
+        .pair_at_index(app_data.index)
+        .unwrap()
+        .label_file
+    {
+        let mut children = Vec::new();
 
-        for (index, entry) in image_data.yolo_file.entries.iter().enumerate() {
-            let (scaled_x_center, scaled_y_center, scaled_width, scaled_height) = scale_dimensions(
-                entry.x_center,
-                entry.y_center,
-                entry.width,
-                entry.height,
-                image_size,
-            );
+        if let Some((image_eid, image_data)) = query.iter().next() {
+            let image = images.get(&image_data.image).unwrap();
+            let image_size = Vec2::new(image.width() as f32, image.height() as f32);
 
-            let bounding_box_transform =
-                get_bounding_box_transform(scaled_x_center, scaled_y_center, image_size);
-
-            let size = Vec2::new(scaled_width, scaled_height);
-
-            let class_names_map = project_resource.0.config.export.class_map.clone();
-            let class_name = class_names_map[&entry.class].clone();
-            let class_color_string = class_color_map[&class_name].clone();
-
-            if let Some(class_color) = srgba_string_to_color(&class_color_string) {
-                let bounding_box_eid = commands
-                    .spawn((
-                        Name::new(format!("bounding_box_{}", index)),
-                        ShapeBundle::rect(
-                            &ShapeConfig {
-                                color: class_color,
-                                transform: bounding_box_transform,
-                                hollow: true,
-                                thickness: bounding_box_settings.thickness,
-                                corner_radii: Vec4::splat(bounding_box_settings.corner_radius),
-                                ..ShapeConfig::default_2d()
-                            },
-                            size,
-                        ),
-                        BoundingBox,
-                        MAIN_LAYER,
-                    ))
-                    .id();
-
-                children.push(bounding_box_eid);
+            let bounding_boxes = bb_painter.get_boxes(&yolo_file, image_size);
+            for bounding_box in bounding_boxes {
+                let child_id = commands.spawn(bounding_box).id();
+                children.push(child_id);
             }
+            commands.entity(image_eid).push_children(&children);
         }
-        commands.entity(image_eid).push_children(&children);
     }
 }
 
