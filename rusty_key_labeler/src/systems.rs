@@ -180,46 +180,50 @@ pub fn next_and_previous_system(
     query: Query<Entity, With<ImageToLoad>>,
     query_selected_images: Query<Entity, With<SelectedImage>>,
 ) {
-    let mut index = app_data.index;
     if keyboard_input.just_pressed(KeyCode::ArrowRight) {
-        index = app_data.index + 1;
+        app_data.index += 1;
     } else if keyboard_input.just_pressed(KeyCode::ArrowLeft) {
-        index = app_data.index - 1;
+        app_data.index -= 1;
     } else {
         return;
     }
 
-    if index < 0 {
-        index = project_resource.0.get_valid_pairs().len() as isize - 1;
+    let valid_pairs = project_resource.0.get_valid_pairs();
+
+    if app_data.index < 0 {
+        app_data.index = valid_pairs.len() as isize - 1;
     }
 
-    println!("Loading next image");
+    if app_data.index >= valid_pairs.len() as isize {
+        app_data.index = 0;
+    }
 
     // Despawn selected image
     for entity in query_selected_images.iter() {
         commands.entity(entity).despawn_recursive();
     }
 
-    let valid_pairs = project_resource.0.get_valid_pairs();
-
-    if index < valid_pairs.len() as isize {
-        let next_image = valid_pairs[index as usize].clone().image_path.unwrap();
-        let next_image = next_image.as_path().to_string_lossy().into_owned();
-        commands.spawn((
-            Name::new("selected_image"),
-            SpriteBundle {
-                texture: asset_server.load::<Image>(next_image.clone()),
-                transform: Transform::from_translation(Vec3::new(0., 0., 0.)),
-                ..Default::default()
-            },
-            ImageToLoad {
-                path: next_image,
-                yolo_file: valid_pairs[index as usize].label_file.clone().unwrap(),
-            },
-            MAIN_LAYER,
-        ));
-        app_data.index = index;
-    }
+    let next_image = valid_pairs[app_data.index as usize]
+        .clone()
+        .image_path
+        .unwrap();
+    let next_image = next_image.as_path().to_string_lossy().into_owned();
+    commands.spawn((
+        Name::new("selected_image"),
+        SpriteBundle {
+            texture: asset_server.load::<Image>(next_image.clone()),
+            transform: Transform::from_translation(Vec3::new(0., 0., 0.)),
+            ..Default::default()
+        },
+        ImageToLoad {
+            path: next_image,
+            yolo_file: valid_pairs[app_data.index as usize]
+                .label_file
+                .clone()
+                .unwrap(),
+        },
+        MAIN_LAYER,
+    ));
 
     // Remove ImageToLoad component
     for entity in query.iter() {
@@ -269,7 +273,6 @@ pub fn zoom_system(
     keyboard_input: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
     config: Res<Config>,
-    mut ui: ResMut<UI>,
 ) {
     // TODO: I need to figure out how to separate the UI from the camera zoom.
     //       maybe layers?

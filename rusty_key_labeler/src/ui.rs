@@ -34,14 +34,14 @@ impl UI {
         }
     }
 
-    pub fn update(&mut self, ui_data: UiPanelSettings, window: &Window) {
-        self.top_left_position =
-            self.get_ui_window_xy(&ui_data.top_left_position, &ui_data.size, window);
-        self.size = ui_data.size;
-        self.color = ui_data.color;
-    }
+    // pub fn update(&mut self, ui_data: UiPanelSettings, window: &Window) {
+    //     self.top_left_position =
+    //         self.get_ui_window_xy(&ui_data.top_left_position, &ui_data.size, window);
+    //     self.size = ui_data.size;
+    //     self.color = ui_data.color;
+    // }
 
-    pub fn update_scale(&mut self, ui_data: UiPanelSettings, window: &Window) {}
+    // pub fn update_scale(&mut self, ui_data: UiPanelSettings, window: &Window) {}
 
     pub fn on_window_resize(&mut self, mut commands: Commands, window: &Window) {
         self.top_left_position =

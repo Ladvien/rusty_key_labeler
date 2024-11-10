@@ -1,11 +1,4 @@
-use bevy::prelude::*;
-use bevy::{
-    color::{Color, Srgba},
-    math::Vec2,
-};
-use hashbrown::HashMap;
-
-use crate::YoloProjectResource;
+use bevy::{color::Color, math::Vec2};
 
 pub fn srgba_string_to_color(srgba_string: &str) -> Option<Color> {
     let rgba: Vec<&str> = srgba_string

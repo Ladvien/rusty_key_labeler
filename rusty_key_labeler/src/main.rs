@@ -22,7 +22,7 @@ fn main() {
     // https://github.com/sebastienrousseau/serde_yml
     let data =
         std::fs::read_to_string("rusty_key_labeler/config.yaml").expect("Unable to read file");
-    let mut config: Config = serde_yml::from_str(&data).expect("Unable to parse YAML");
+    let config: Config = serde_yml::from_str(&data).expect("Unable to parse YAML");
     let project = YoloProject::new(&config.project_config);
 
     // let report = YoloDataQualityReport::generate(project.clone().unwrap());
