@@ -8,14 +8,7 @@ use bevy::{
     window::Window,
 };
 
-use crate::settings::{TopLeftPosition, UiPanelSize, UI_LAYER};
-
-#[derive(Debug, Clone)]
-pub struct UiData {
-    pub size: UiPanelSize,
-    pub top_left_position: TopLeftPosition,
-    pub color: Color,
-}
+use crate::settings::{TopLeftPosition, UiPanelSettings, UiPanelSize, UI_LAYER};
 
 #[derive(Debug, Component, Clone)]
 pub struct UiPanel;
@@ -32,7 +25,7 @@ pub struct UI {
 }
 
 impl UI {
-    pub fn new(ui_data: UiData) -> Self {
+    pub fn new(ui_data: UiPanelSettings) -> Self {
         Self {
             size: ui_data.size,
             original_top_left_position: ui_data.top_left_position.clone(),
@@ -41,14 +34,14 @@ impl UI {
         }
     }
 
-    pub fn update(&mut self, ui_data: UiData, window: &Window) {
+    pub fn update(&mut self, ui_data: UiPanelSettings, window: &Window) {
         self.top_left_position =
             self.get_ui_window_xy(&ui_data.top_left_position, &ui_data.size, window);
         self.size = ui_data.size;
         self.color = ui_data.color;
     }
 
-    pub fn update_scale(&mut self, ui_data: UiData, window: &Window) {}
+    pub fn update_scale(&mut self, ui_data: UiPanelSettings, window: &Window) {}
 
     pub fn on_window_resize(&mut self, mut commands: Commands, window: &Window) {
         self.top_left_position =

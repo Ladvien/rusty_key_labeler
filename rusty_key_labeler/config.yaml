@@ -35,8 +35,8 @@ settings:
     corner_radius: 5.0
     class_color_map:
       # RGBA Color
-      horizontal_animation: (0, 255, 0, 255)
-      vertical_animation: (0, 0, 255, 255)
+      - (0, 255, 0, 255)
+      - (0, 0, 255, 255)
 
   ui_panel:
     color: (50, 50, 200, 255)

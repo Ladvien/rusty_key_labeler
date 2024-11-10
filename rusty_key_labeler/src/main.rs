@@ -14,7 +14,7 @@ use bounding_boxes::BoundingBoxPainter;
 use components::*;
 use resources::*;
 use systems::*;
-use ui::{UiData, UI};
+use ui::UI;
 use yolo_io::YoloProject;
 
 fn main() {
@@ -38,12 +38,7 @@ fn main() {
 
     let project_resource = YoloProjectResource(project.unwrap());
 
-    let ui_data = UiData {
-        size: config.settings.ui_panel.size.clone(),
-        top_left_position: config.settings.ui_panel.top_left_position.clone(),
-        color: config.settings.ui_panel.color,
-    };
-    let ui = UI::new(ui_data);
+    let ui = UI::new(config.settings.ui_panel.clone());
 
     let bb_painter = BoundingBoxPainter::new(
         &config.settings.bounding_boxes,
