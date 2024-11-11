@@ -8,6 +8,7 @@ mod utils;
 
 use bevy::prelude::*;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
+use bevy_lunex::UiDefaultPlugins;
 use bevy_vector_shapes::prelude::*;
 
 use bounding_boxes::BoundingBoxPainter;
@@ -53,6 +54,7 @@ fn main() {
             DefaultPlugins.set(ImagePlugin::default_nearest()),
             WorldInspectorPlugin::new(),
             Shape2dPlugin::default(),
+            UiDefaultPlugins,
         ))
         .insert_resource(config)
         .insert_resource(ui)

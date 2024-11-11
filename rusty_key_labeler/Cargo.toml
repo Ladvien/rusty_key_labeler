@@ -4,8 +4,9 @@ name = "rusty_key_labeler"
 version = "0.1.0"
 
 [dependencies]
-bevy = {version = "0.14.1", features = ["dynamic_linking", "serialize"]}
+bevy = {version = "0.14.2", features = ["dynamic_linking", "serialize"]}
 
+bevy_lunex = "0.2.4"
 bevy_prototype_lyon = "0.12"
 bevy_vector_shapes = "0.8.2"
 hashbrown = {version = "0.15.1", features = ["serde"]}

@@ -1,4 +1,5 @@
 use bevy::{asset::LoadState, prelude::*, window::WindowResized};
+use bevy_lunex::prelude::MainUi;
 use std::path::Path;
 
 use crate::{
@@ -57,20 +58,20 @@ pub fn setup(
         MainCamera,
     ));
 
-    commands.spawn((
-        Name::new("ui_camera"),
-        Camera2dBundle {
-            camera: Camera {
-                // Render the UI on top of everything else.
-                order: 1,
-                ..default()
-            },
-            transform: Transform::from_xyz(0., 0., 10.).looking_at(Vec3::ZERO, Vec3::Y),
-            ..default()
-        },
-        UI_LAYER,
-        UiCamera,
-    ));
+    // commands.spawn((
+    //     Name::new("ui_camera"),
+    //     Camera2dBundle {
+    //         camera: Camera {
+    //             // Render the UI on top of everything else.
+    //             order: 1,
+    //             ..default()
+    //         },
+    //         transform: Transform::from_xyz(0., 0., 10.).looking_at(Vec3::ZERO, Vec3::Y),
+    //         ..default()
+    //     },
+    //     UI_LAYER,
+    //     UiCamera,
+    // ));
 }
 
 pub fn on_resize_system(
@@ -87,12 +88,38 @@ pub fn on_resize_system(
         panic!("More than one window found");
     }
 
-    let window = window.single();
-    ui.on_window_resize(commands, window);
+    // let window = window.single();
+    // ui.on_window_resize(commands, window);
 }
 
-pub fn setup_ui(mut commands: Commands, ui: Res<UI>) {
-    commands.spawn(ui.get_ui_bundle());
+pub fn setup_ui(
+    mut commands: Commands,
+    ui: Res<UI>,
+    asset_server: Res<AssetServer>,
+    window: Query<&Window>,
+) {
+    if window.iter().count() > 1 {
+        panic!("More than one window found");
+    }
+
+    commands.spawn((
+        // Add this marker component provided by Lunex.
+        MainUi,
+        // Our camera bundle with depth 1000.0 because UI starts at `0` and goes up with each layer.
+        Camera2dBundle {
+            camera: Camera {
+                // Render the UI on top of everything else.
+                order: 1,
+                ..default()
+            },
+            transform: Transform::from_xyz(0.0, 0.0, 1000.0),
+            ..default()
+        },
+        UI_LAYER,
+        UiCamera,
+    ));
+
+    ui.paint_ui(commands, asset_server, window.single());
 }
 
 pub fn update_ui_panel(
@@ -101,6 +128,7 @@ pub fn update_ui_panel(
     mut old_ui: Query<Entity, With<UiPanel>>,
     ui: Res<UI>,
     window: Query<&Window>,
+    asset_server: Res<AssetServer>,
 ) {
     if change_flag.iter().count() == 0 {
         return;
@@ -120,11 +148,11 @@ pub fn update_ui_panel(
     }
 
     // Despawn the UI panel
-    for ui_panel in old_ui.iter_mut() {
-        commands.entity(ui_panel).despawn_recursive();
-    }
+    // for ui_panel in old_ui.iter_mut() {
+    //     commands.entity(ui_panel).despawn_recursive();
+    // }
 
-    commands.spawn(ui.get_ui_bundle());
+    // ui.paint_ui(commands, asset_server);
 }
 
 pub fn on_image_loaded_system(
