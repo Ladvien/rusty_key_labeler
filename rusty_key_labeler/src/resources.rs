@@ -11,6 +11,7 @@ pub struct YoloProjectResource(pub YoloProject);
 #[derive(Resource, Debug, Clone)]
 pub struct AppData {
     pub index: isize,
+    pub total_images: isize,
 }
 
 #[derive(Debug, Serialize, Deserialize, Resource)]

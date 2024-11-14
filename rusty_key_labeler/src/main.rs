@@ -8,7 +8,7 @@ mod utils;
 
 use bevy::prelude::*;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
-use bevy_lunex::UiDefaultPlugins;
+use bevy_lunex::{prelude::MainUi, UiDebugPlugin, UiDefaultPlugins};
 use bevy_vector_shapes::prelude::*;
 
 use bounding_boxes::BoundingBoxPainter;
@@ -46,15 +46,21 @@ fn main() {
         &config.project_config.export.class_map,
     );
 
-    let app_data = AppData { index: 0 };
+    let num_valid_images = project_resource.0.get_valid_pairs().len() as isize;
+
+    let app_data = AppData {
+        index: 0,
+        total_images: num_valid_images - 1,
+    };
 
     App::new()
         .init_resource::<Assets<ColorMaterial>>()
         .add_plugins((
             DefaultPlugins.set(ImagePlugin::default_nearest()),
-            WorldInspectorPlugin::new(),
+            // WorldInspectorPlugin::new(),
             Shape2dPlugin::default(),
             UiDefaultPlugins,
+            // UiDebugPlugin::<MainUi>::new(),
         ))
         .insert_resource(config)
         .insert_resource(ui)

@@ -7,7 +7,7 @@ use crate::{
     resources::{AppData, YoloProjectResource},
     settings::{MAIN_LAYER, UI_LAYER},
     ui::{UiDataChanged, UiPanel, UI},
-    Config, ImageData, ImageToLoad, MainCamera, SelectedImage, UiCamera,
+    Config, ImageData, ImageToLoad, MainCamera, SelectedImage, TestFlag, UiCamera, UiData,
 };
 
 pub fn setup(
@@ -94,9 +94,10 @@ pub fn on_resize_system(
 
 pub fn setup_ui(
     mut commands: Commands,
-    ui: Res<UI>,
+    mut ui: ResMut<UI>,
     asset_server: Res<AssetServer>,
     window: Query<&Window>,
+    query: Query<&UiData>,
 ) {
     if window.iter().count() > 1 {
         panic!("More than one window found");
@@ -119,16 +120,17 @@ pub fn setup_ui(
         UiCamera,
     ));
 
-    ui.paint_ui(commands, asset_server, window.single());
+    ui.paint_ui(commands, asset_server, window.single(), None);
 }
 
 pub fn update_ui_panel(
     mut commands: Commands,
-    mut change_flag: Query<Entity, With<UiDataChanged>>,
-    mut old_ui: Query<Entity, With<UiPanel>>,
-    ui: Res<UI>,
+    change_flag: Query<Entity, With<UiDataChanged>>,
+    main_ui: Query<Entity, With<MainUi>>,
+    mut ui: ResMut<UI>,
     window: Query<&Window>,
     asset_server: Res<AssetServer>,
+    query: Query<&ImageData, With<SelectedImage>>,
 ) {
     if change_flag.iter().count() == 0 {
         return;
@@ -142,17 +144,19 @@ pub fn update_ui_panel(
         panic!("More than one UI panel found");
     }
 
-    // Despawn the change flag
-    for ui_panel in change_flag.iter_mut() {
-        commands.entity(ui_panel).despawn_recursive();
+    // Remove the UiDataChanged component
+    for entity in change_flag.iter() {
+        commands.entity(entity).remove::<UiDataChanged>();
     }
 
-    // Despawn the UI panel
-    // for ui_panel in old_ui.iter_mut() {
-    //     commands.entity(ui_panel).despawn_recursive();
+    // Despawn the old UI panel
+    // for entity in main_ui.iter() {
+    //     commands.entity(entity).despawn_recursive();
     // }
 
-    // ui.paint_ui(commands, asset_server);
+    // Paint the UI panel
+    let data = query.iter().next();
+    ui.paint_ui(commands, asset_server, window.single(), data);
 }
 
 pub fn on_image_loaded_system(
@@ -160,6 +164,7 @@ pub fn on_image_loaded_system(
     asset_server: Res<AssetServer>,
     images: Res<Assets<Image>>,
     query: Query<(Entity, &ImageToLoad), With<ImageToLoad>>,
+    app_data: Res<AppData>,
 ) {
     // TODO: Clean up unwrap.
     if let Some((entity, image_to_load)) = query.iter().next() {
@@ -187,9 +192,12 @@ pub fn on_image_loaded_system(
                         width: image.width() as f32,
                         height: image.height() as f32,
                         yolo_file: image_to_load.yolo_file.clone(),
+                        index: app_data.index,
+                        total_images: app_data.total_images,
                     };
 
-                    commands.entity(entity).insert(image_data);
+                    println!("Image loaded: {:#?}", image_data);
+                    commands.entity(entity).insert((image_data, UiDataChanged));
                 }
             }
             None => {
@@ -236,6 +244,22 @@ pub fn next_and_previous_system(
         .image_path
         .unwrap();
     let next_image = next_image.as_path().to_string_lossy().into_owned();
+
+    let ui_data = UiData {
+        stem: valid_pairs[app_data.index as usize].name.clone(),
+        image_path: valid_pairs[app_data.index as usize]
+            .image_path
+            .clone()
+            .unwrap()
+            .to_string_lossy()
+            .into_owned(),
+        label_path: valid_pairs[app_data.index as usize]
+            .clone()
+            .label_file
+            .unwrap()
+            .path,
+    };
+
     commands.spawn((
         Name::new("selected_image"),
         SpriteBundle {
@@ -250,6 +274,7 @@ pub fn next_and_previous_system(
                 .clone()
                 .unwrap(),
         },
+        ui_data,
         MAIN_LAYER,
     ));
 
@@ -272,8 +297,6 @@ pub fn paint_bounding_boxes_system(
         return;
     }
 
-    println!("Index: {:#?}", app_data.index);
-
     if let Some(yolo_file) = project_resource
         .0
         .pair_at_index(app_data.index)
@@ -290,6 +313,10 @@ pub fn paint_bounding_boxes_system(
             for bounding_box in bounding_boxes {
                 let child_id = commands.spawn(bounding_box).id();
                 children.push(child_id);
+            }
+
+            if children.is_empty() {
+                return;
             }
             commands.entity(image_eid).push_children(&children);
         }

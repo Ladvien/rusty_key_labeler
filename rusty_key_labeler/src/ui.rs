@@ -2,7 +2,10 @@ use bevy::{math::VectorSpace, prelude::*, sprite::Anchor};
 
 use bevy_lunex::prelude::*;
 
-use crate::settings::{TopLeftPosition, UiPanelSettings, UiPanelSize, UI_LAYER};
+use crate::{
+    settings::{TopLeftPosition, UiPanelSettings, UiPanelSize, UI_LAYER},
+    ImageData, TestFlag, UiData,
+};
 
 pub const UI_Z_INDEX: f32 = 99.0;
 
@@ -18,6 +21,7 @@ pub struct UI {
     original_top_left_position: TopLeftPosition,
     top_left_position: TopLeftPosition,
     color: Color,
+    old_ui_eid: Option<Entity>,
 }
 
 impl UI {
@@ -27,6 +31,7 @@ impl UI {
             original_top_left_position: ui_data.top_left_position.clone(),
             top_left_position: ui_data.top_left_position,
             color: ui_data.color,
+            old_ui_eid: None,
         }
     }
 
@@ -59,17 +64,14 @@ impl UI {
     }
 
     pub fn paint_ui(
-        &self,
+        &mut self,
         mut commands: Commands,
         asset_server: Res<AssetServer>,
         window: &Window,
+        data: Option<&ImageData>,
     ) {
-        // let transform = self.to_transform(window);
+        println!("{:#?}", data);
 
-        let half_window_width = window.width() / 2.;
-        let half_window_height = window.height() / 2.;
-        let half_box_width = self.size.width / 2.;
-        let half_box_height = self.size.height / 2.;
         let x = self.top_left_position.x as f32;
         let y = self.top_left_position.y as f32;
 
@@ -78,18 +80,21 @@ impl UI {
             window.height() - self.size.height,
         ));
 
-        let spacing = Rl((5., 5.));
-        let top_padding = Rl(2.0);
         let font_handle = asset_server.load("RobotoMono-Regular.ttf");
 
+        // Unwrap UI data.
+        let stem = data.map(|d| d.stem.clone()).unwrap_or(String::from(""));
+
         // Spawn UiTree
-        commands
+        let root = UiTreeBundle::<MainUi> {
+            // transform,
+            tree: UiTree::new2d("Root"),
+            ..default()
+        };
+
+        let new_ui_eid = commands
             .spawn((
-                UiTreeBundle::<MainUi> {
-                    // transform,
-                    tree: UiTree::new2d("root"),
-                    ..default()
-                },
+                root.clone(),
                 Name::new("root"),
                 SourceFromCamera,
                 UiPanel,
@@ -125,44 +130,24 @@ impl UI {
                         ..Default::default()
                     },
                     // UiImage2dBundle::from(asset_server.load("background.png")),
-                    UiPanel,
-                    UI_LAYER,
-                ));
-
-                ui.spawn((
-                    // Link this widget
-                    UiLink::<MainUi>::path("root/rectangle/text"),
-                    UiLayout::boundary()
-                        .pos1(top_padding)
-                        .pos2(Rl(80.0))
-                        .pack::<Base>(),
-                    // Add text
-                    UiText2dBundle {
-                        text: Text::from_section(
-                            "Info:",
-                            TextStyle {
-                                font: font_handle.clone(),
-                                font_size: 12.0,
-                                color: Color::WHITE,
-                            },
-                        ),
-                        ..default()
-                    },
+                    TestFlag,
                     UiPanel,
                     UI_LAYER,
                 ));
 
                 // ui.spawn((
                 //     // Link this widget
-                //     UiLink::<MainUi>::path("root/rectangle/text2"),
-                //     UiLayout::boundary()
-                //         .pos1(top_padding)
-                //         // .pos2(Rl(80.0))
+                //     UiLink::<MainUi>::path("root/rectangle/label"),
+                //     // Here we can define where we want to position our text within the parent node,
+                //     // don't worry about size, that is picked up and overwritten automaticaly by Lunex to match text size.
+                //     UiLayout::window()
+                //         .pos(main_label_spacing)
+                //         .anchor(Anchor::TopLeft)
                 //         .pack::<Base>(),
                 //     // Add text
                 //     UiText2dBundle {
                 //         text: Text::from_section(
-                //             "Hello World!",
+                //             "Info:",
                 //             TextStyle {
                 //                 font: font_handle.clone(),
                 //                 font_size: 12.0,
@@ -175,86 +160,59 @@ impl UI {
                 //     UI_LAYER,
                 // ));
 
-                // Spawn image with a node
-                // ui.spawn((
-                //     UiLink::<MainUi>::path("root/image"),
-                //     // UiLayout::solid()
-                //     //     .size((Ab(self.size.width), Ab(self.size.height)))
-                //     //     .pack::<Base>(),
-                //     UiImage2dBundle::from(asset_server.load("background.png")),
-                //     UiPanel,
-                //     UI_LAYER,
-                // ));
-            });
+                ui.spawn((
+                    UiLink::<MainUi>::path("root/rectangle/image_index"),
+                    UiLayout::window()
+                        .pos(Ab((5.0, 5.0)))
+                        .anchor(Anchor::TopLeft)
+                        .pack::<Base>(),
+                    UiText2dBundle {
+                        text: Text::from_section(
+                            format!(
+                                "Image Index: {} of {}",
+                                data.map(|d| d.index).unwrap_or(0),
+                                data.map(|d| d.total_images).unwrap_or(0)
+                            ),
+                            TextStyle {
+                                font: font_handle.clone(),
+                                font_size: 12.0,
+                                color: Color::WHITE,
+                            },
+                        ),
+                        ..default()
+                    },
+                    UiPanel,
+                    UI_LAYER,
+                ));
 
-        // let bundle = (
-        //     Name::new("ui"),
-        //     SpriteBundle {
-        //         sprite: Sprite {
-        //             color: self.color,
-        //             custom_size: Some(Vec2::new(self.size.width, self.size.height)),
-        //             ..Default::default()
-        //         },
-        //         transform,
-        //         ..Default::default()
-        //     },
-        //     UiPanel,
-        //     UI_LAYER,
-        // );
+                ui.spawn((
+                    UiLink::<MainUi>::path("root/rectangle/image_name"),
+                    UiLayout::window()
+                        .anchor(Anchor::TopLeft)
+                        .pos(Ab((5.0, 20.0)))
+                        .pack::<Base>(),
+                    UiText2dBundle {
+                        text: Text::from_section(
+                            format!("Image Name: {}", stem),
+                            TextStyle {
+                                font: font_handle.clone(),
+                                font_size: 12.0,
+                                color: Color::WHITE,
+                            },
+                        ),
+                        ..default()
+                    },
+                    UiPanel,
+                    UI_LAYER,
+                ));
+            })
+            .id();
 
-        // let ui_eid = commands.spawn(bundle).id();
+        if let Some(old_ui_eid) = self.old_ui_eid {
+            commands.entity(old_ui_eid).despawn_recursive();
+        }
 
-        // println!("UI Entity ID: {:#?}", ui_eid);
-
-        // commands.spawn((
-        //     // #=== UI DEFINITION ===#
-
-        //     // This specifies the name and hierarchy of the node
-        //     UiLink::<MainUi>::path("Menu/Button"),
-        //     // Here you can define the layout using the provided units (per state like Base, Hover, Selected, etc.)
-        //     UiLayout::window()
-        //         .pos(Rl((
-        //             self.top_left_position.x as f32,
-        //             self.top_left_position.y as f32,
-        //         )))
-        //         .size(Rh(Vec2::new(self.size.width, self.size.height)))
-        //         .pack::<Base>(),
-        //     // #=== CUSTOMIZATION ===#
-
-        //     // Give it a background image
-        //     UiImage2dBundle {
-        //         sprite: Sprite {
-        //             color: self.color,
-        //             custom_size: Some(Vec2::new(self.size.width, self.size.height)),
-        //             ..Default::default()
-        //         },
-        //         transform,
-        //         ..Default::default()
-        //     },
-        //     // // Make the background image resizable
-        //     // ImageScaleMode::Sliced(TextureSlicer { border: BorderRect::square(32.0), ..default() }),
-
-        //     // // This is required to control our hover animation
-        //     // UiAnimator::<Hover>::new().forward_speed(5.0).backward_speed(1.0),
-
-        //     // // This will set the base color to red
-        //     UiColor<Base>::new(Color::RED),
-
-        //     // // This will set hover color to yellow
-        //     // UiColor::<UiColor>::new(Color::YELLOW),
-        //     // // #=== INTERACTIVITY ===#
-
-        //     // // This is required for hit detection (make it clickable)
-        //     // PickableBundle::default(),
-
-        //     // // This will change cursor icon on mouse hover
-        //     // OnHoverSetCursor::new(CursorIcon::Pointer),
-
-        //     // // If we click on this, it will emmit UiClick event we can listen to
-        //     // UiClickEmitter::SELF,
-        //     UiPanel,
-        //     UI_LAYER,
-        // ));
+        self.old_ui_eid = Some(new_ui_eid);
     }
 
     // Privates

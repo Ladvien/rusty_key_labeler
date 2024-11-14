@@ -9,6 +9,8 @@ pub struct ImageData {
     pub width: f32,
     pub height: f32,
     pub yolo_file: YoloFile,
+    pub index: isize,
+    pub total_images: isize,
 }
 
 #[derive(Component)]
@@ -25,3 +27,13 @@ pub struct MainCamera;
 
 #[derive(Debug, Clone, Component)]
 pub struct UiCamera;
+
+#[derive(Debug, Clone, Component)]
+pub struct UiData {
+    pub stem: String,
+    pub image_path: String,
+    pub label_path: String,
+}
+
+#[derive(Debug, Clone, Component)]
+pub struct TestFlag;
