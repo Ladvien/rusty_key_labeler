@@ -1,5 +1,6 @@
 use bevy::{asset::LoadState, prelude::*, window::WindowResized};
 use bevy_lunex::prelude::MainUi;
+use bevy_ui_views::{VStack, VStackContainerItem, VStackUpdatedItems};
 use std::path::Path;
 
 use crate::{
@@ -58,20 +59,36 @@ pub fn setup(
         MainCamera,
     ));
 
-    // commands.spawn((
-    //     Name::new("ui_camera"),
-    //     Camera2dBundle {
-    //         camera: Camera {
-    //             // Render the UI on top of everything else.
-    //             order: 1,
-    //             ..default()
-    //         },
-    //         transform: Transform::from_xyz(0., 0., 10.).looking_at(Vec3::ZERO, Vec3::Y),
-    //         ..default()
-    //     },
-    //     UI_LAYER,
-    //     UiCamera,
-    // ));
+    commands.spawn((
+        Name::new("ui_camera"),
+        Camera2dBundle {
+            camera: Camera {
+                // Render the UI on top of everything else.
+                order: 1,
+                ..default()
+            },
+            transform: Transform::from_xyz(0., 0., 10.).looking_at(Vec3::ZERO, Vec3::Y),
+            ..default()
+        },
+        UI_LAYER,
+        UiCamera,
+    ));
+
+    let vstack_eid = commands
+        .spawn((
+            Name::new("VStack"),
+            VStack {
+                text: "ExtendedScrollView".to_string(),
+                position: Vec2::new(0.0, 0.0),
+                percent_width: 25.0,
+                percent_height: 100.0,
+                layer: UI_LAYER,
+                ..Default::default()
+            },
+        ))
+        .id();
+
+    app_data.ui_eid = Some(vstack_eid);
 }
 
 pub fn on_resize_system(
@@ -92,72 +109,72 @@ pub fn on_resize_system(
     // ui.on_window_resize(commands, window);
 }
 
-pub fn setup_ui(
-    mut commands: Commands,
-    mut ui: ResMut<UI>,
-    asset_server: Res<AssetServer>,
-    window: Query<&Window>,
-    query: Query<&UiData>,
-) {
-    if window.iter().count() > 1 {
-        panic!("More than one window found");
-    }
+// pub fn setup_ui(
+//     mut commands: Commands,
+//     mut ui: ResMut<UI>,
+//     asset_server: Res<AssetServer>,
+//     window: Query<&Window>,
+//     query: Query<&UiData>,
+// ) {
+//     if window.iter().count() > 1 {
+//         panic!("More than one window found");
+//     }
 
-    commands.spawn((
-        // Add this marker component provided by Lunex.
-        MainUi,
-        // Our camera bundle with depth 1000.0 because UI starts at `0` and goes up with each layer.
-        Camera2dBundle {
-            camera: Camera {
-                // Render the UI on top of everything else.
-                order: 1,
-                ..default()
-            },
-            transform: Transform::from_xyz(0.0, 0.0, 1000.0),
-            ..default()
-        },
-        UI_LAYER,
-        UiCamera,
-    ));
+//     commands.spawn((
+//         // Add this marker component provided by Lunex.
+//         MainUi,
+//         // Our camera bundle with depth 1000.0 because UI starts at `0` and goes up with each layer.
+//         Camera2dBundle {
+//             camera: Camera {
+//                 // Render the UI on top of everything else.
+//                 order: 1,
+//                 ..default()
+//             },
+//             transform: Transform::from_xyz(0.0, 0.0, 1000.0),
+//             ..default()
+//         },
+//         UI_LAYER,
+//         UiCamera,
+//     ));
 
-    ui.paint_ui(commands, asset_server, window.single(), None);
-}
+//     ui.paint_ui(commands, asset_server, window.single(), None);
+// }
 
-pub fn update_ui_panel(
-    mut commands: Commands,
-    change_flag: Query<Entity, With<UiDataChanged>>,
-    main_ui: Query<Entity, With<MainUi>>,
-    mut ui: ResMut<UI>,
-    window: Query<&Window>,
-    asset_server: Res<AssetServer>,
-    query: Query<&ImageData, With<SelectedImage>>,
-) {
-    if change_flag.iter().count() == 0 {
-        return;
-    }
+// pub fn update_ui_panel(
+//     mut commands: Commands,
+//     change_flag: Query<Entity, With<UiDataChanged>>,
+//     main_ui: Query<Entity, With<MainUi>>,
+//     mut ui: ResMut<UI>,
+//     window: Query<&Window>,
+//     asset_server: Res<AssetServer>,
+//     query: Query<&ImageData, With<SelectedImage>>,
+// ) {
+//     if change_flag.iter().count() == 0 {
+//         return;
+//     }
 
-    if window.iter().count() > 1 {
-        panic!("More than one window found");
-    }
+//     if window.iter().count() > 1 {
+//         panic!("More than one window found");
+//     }
 
-    if change_flag.iter().count() > 1 {
-        panic!("More than one UI panel found");
-    }
+//     if change_flag.iter().count() > 1 {
+//         panic!("More than one UI panel found");
+//     }
 
-    // Remove the UiDataChanged component
-    for entity in change_flag.iter() {
-        commands.entity(entity).remove::<UiDataChanged>();
-    }
+//     // Remove the UiDataChanged component
+//     for entity in change_flag.iter() {
+//         commands.entity(entity).remove::<UiDataChanged>();
+//     }
 
-    // Despawn the old UI panel
-    // for entity in main_ui.iter() {
-    //     commands.entity(entity).despawn_recursive();
-    // }
+//     // Despawn the old UI panel
+//     // for entity in main_ui.iter() {
+//     //     commands.entity(entity).despawn_recursive();
+//     // }
 
-    // Paint the UI panel
-    let data = query.iter().next();
-    ui.paint_ui(commands, asset_server, window.single(), data);
-}
+//     // Paint the UI panel
+//     let data = query.iter().next();
+//     ui.paint_ui(commands, asset_server, window.single(), data);
+// }
 
 pub fn on_image_loaded_system(
     mut commands: Commands,
@@ -165,8 +182,37 @@ pub fn on_image_loaded_system(
     images: Res<Assets<Image>>,
     query: Query<(Entity, &ImageToLoad), With<ImageToLoad>>,
     app_data: Res<AppData>,
+    mut has_run: Local<bool>,
 ) {
     // TODO: Clean up unwrap.
+
+    const CLR_1: Color = Color::srgb(0.168, 0.168, 0.168);
+    const CLR_2: Color = Color::srgb(0.109, 0.109, 0.109);
+    const BORDER_COLOR: Color = Color::srgb(0.569, 0.592, 0.647);
+    const CLR_4: Color = Color::srgb(0.902, 0.4, 0.004);
+
+    if let Some(ui_eid) = app_data.ui_eid {
+        if *has_run {
+            return;
+        }
+
+        let mut items = Vec::new();
+        for i in 0..10 {
+            items.push(VStackContainerItem {
+                text: format!("Item {}", i),
+                background_color: if i % 2 == 0 { CLR_1 } else { CLR_2 },
+                ..Default::default()
+            });
+        }
+        commands.spawn(VStackUpdatedItems {
+            vstack_eid: ui_eid,
+            items,
+        });
+
+        println!("UI updated");
+        *has_run = true;
+    }
+
     if let Some((entity, image_to_load)) = query.iter().next() {
         let image_handle: Handle<Image> = asset_server.load(image_to_load.path.clone());
 
@@ -196,7 +242,7 @@ pub fn on_image_loaded_system(
                         total_images: app_data.total_images,
                     };
 
-                    println!("Image loaded: {:#?}", image_data);
+                    // println!("Image loaded: {:#?}", image_data);
                     commands.entity(entity).insert((image_data, UiDataChanged));
                 }
             }

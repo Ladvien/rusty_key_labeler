@@ -9,6 +9,7 @@ mod utils;
 use bevy::prelude::*;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_lunex::{prelude::MainUi, UiDebugPlugin, UiDefaultPlugins};
+use bevy_ui_views::BevyUiViewsPlugin;
 use bevy_vector_shapes::prelude::*;
 
 use bounding_boxes::BoundingBoxPainter;
@@ -51,15 +52,17 @@ fn main() {
     let app_data = AppData {
         index: 0,
         total_images: num_valid_images - 1,
+        ui_eid: None,
     };
 
     App::new()
         .init_resource::<Assets<ColorMaterial>>()
         .add_plugins((
             DefaultPlugins.set(ImagePlugin::default_nearest()),
-            // WorldInspectorPlugin::new(),
+            WorldInspectorPlugin::new(),
             Shape2dPlugin::default(),
             UiDefaultPlugins,
+            BevyUiViewsPlugin,
             // UiDebugPlugin::<MainUi>::new(),
         ))
         .insert_resource(config)
@@ -67,7 +70,13 @@ fn main() {
         .insert_resource(bb_painter)
         .insert_resource(project_resource)
         .insert_resource(app_data)
-        .add_systems(Startup, (setup, setup_ui))
+        .add_systems(
+            Startup,
+            (
+                setup,
+                // setup_ui
+            ),
+        )
         .add_systems(
             Update,
             (
@@ -77,7 +86,7 @@ fn main() {
                 paint_bounding_boxes_system,
                 on_image_loaded_system,
                 on_resize_system,
-                update_ui_panel,
+                // update_ui_panel,
             ),
         )
         .run();

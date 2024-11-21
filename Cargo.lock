@@ -1382,6 +1382,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "bevy_ui_views"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "bevy-inspector-egui",
+ "bevy_lunex",
+ "uuid",
+]
+
+[[package]]
 name = "bevy_utils"
 version = "0.14.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4441,6 +4451,7 @@ dependencies = [
  "bevy-inspector-egui",
  "bevy_lunex",
  "bevy_prototype_lyon",
+ "bevy_ui_views",
  "bevy_vector_shapes",
  "hashbrown 0.15.1",
  "itertools 0.13.0",

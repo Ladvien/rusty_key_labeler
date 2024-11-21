@@ -1,3 +1,4 @@
+use bevy::prelude::Entity;
 use bevy::prelude::Resource;
 use serde::{Deserialize, Serialize};
 use yolo_io::YoloProject;
@@ -12,6 +13,7 @@ pub struct YoloProjectResource(pub YoloProject);
 pub struct AppData {
     pub index: isize,
     pub total_images: isize,
+    pub ui_eid: Option<Entity>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Resource)]

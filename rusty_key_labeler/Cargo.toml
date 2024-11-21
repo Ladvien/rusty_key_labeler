@@ -8,6 +8,7 @@ bevy = {version = "0.14.2", features = ["dynamic_linking", "serialize"]}
 
 bevy_lunex = "0.2.4"
 bevy_prototype_lyon = "0.12"
+bevy_ui_views = {path = "../bevy_ui_views"}
 bevy_vector_shapes = "0.8.2"
 hashbrown = {version = "0.15.1", features = ["serde"]}
 itertools = "0.13.0"
