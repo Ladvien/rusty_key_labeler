@@ -12,7 +12,7 @@ use bevy_vector_shapes::{
 };
 use hashbrown::HashMap;
 use serde::{Deserialize, Serialize};
-use yolo_io::YoloFile;
+use yolo_io::{YoloEntry, YoloFile};
 
 use crate::{
     settings::MAIN_LAYER,
@@ -97,56 +97,56 @@ impl BoundingBoxPainter {
         }
     }
 
-    pub fn get_boxes(
+    pub fn get_color(&self, class: isize) -> Color {
+        let class_color = self.bounding_box_settings.class_color_map[class as usize];
+        Color::from(class_color)
+    }
+
+    pub fn get_box(
         &self,
-        yolo_file: &YoloFile,
+        index: usize,
+        entry: &YoloEntry,
         image_size: Vec2,
-    ) -> Vec<(
+    ) -> (
         Name,
         ShapeBundle<RectangleComponent>,
         BoundingBoxMarker,
         RenderLayers,
-    )> {
-        let mut bounding_boxes = vec![];
+    ) {
+        let (scaled_x_center, scaled_y_center, scaled_width, scaled_height) = scale_dimensions(
+            entry.x_center,
+            entry.y_center,
+            entry.width,
+            entry.height,
+            image_size,
+        );
 
-        for (index, entry) in yolo_file.entries.iter().enumerate() {
-            let (scaled_x_center, scaled_y_center, scaled_width, scaled_height) = scale_dimensions(
-                entry.x_center,
-                entry.y_center,
-                entry.width,
-                entry.height,
-                image_size,
-            );
+        let bounding_box_transform =
+            Self::get_bounding_box_transform(scaled_x_center, scaled_y_center, image_size);
 
-            let bounding_box_transform =
-                Self::get_bounding_box_transform(scaled_x_center, scaled_y_center, image_size);
+        let size = Vec2::new(scaled_width, scaled_height);
 
-            let size = Vec2::new(scaled_width, scaled_height);
+        let class_color = self.bounding_box_settings.class_color_map[entry.class as usize];
 
-            let class_color = self.bounding_box_settings.class_color_map[entry.class as usize];
-
-            let bounding_box = (
-                Name::new(format!("bounding_box_{}", index)),
-                ShapeBundle::rect(
-                    &ShapeConfig {
-                        color: Color::from(class_color),
-                        transform: bounding_box_transform,
-                        hollow: true,
-                        thickness: self.bounding_box_settings.thickness,
-                        corner_radii: Vec4::splat(self.bounding_box_settings.corner_radius),
-                        ..ShapeConfig::default_2d()
-                    },
-                    size,
-                ),
-                BoundingBoxMarker,
-                MAIN_LAYER,
-            );
-
-            bounding_boxes.push(bounding_box);
-        }
+        let bounding_box = (
+            Name::new(format!("bounding_box_{}", index)),
+            ShapeBundle::rect(
+                &ShapeConfig {
+                    color: Color::from(class_color),
+                    transform: bounding_box_transform,
+                    hollow: true,
+                    thickness: self.bounding_box_settings.thickness,
+                    corner_radii: Vec4::splat(self.bounding_box_settings.corner_radius),
+                    ..ShapeConfig::default_2d()
+                },
+                size,
+            ),
+            BoundingBoxMarker,
+            MAIN_LAYER,
+        );
 
         // children
-        bounding_boxes
+        bounding_box
     }
 
     fn get_bounding_box_transform(x_center: f32, y_center: f32, image_size: Vec2) -> Transform {
@@ -156,8 +156,6 @@ impl BoundingBoxPainter {
             0.,
         ))
     }
-
-    // pub fn get_entries(&self) -> Vec<BoundingBoxEntry> {}
 }
 
 fn get_class_color_map() -> Vec<Srgba> {

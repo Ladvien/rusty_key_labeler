@@ -59,7 +59,7 @@ fn main() {
         .init_resource::<Assets<ColorMaterial>>()
         .add_plugins((
             DefaultPlugins.set(ImagePlugin::default_nearest()),
-            WorldInspectorPlugin::new(),
+            // WorldInspectorPlugin::new(),
             Shape2dPlugin::default(),
             UiDefaultPlugins,
             BevyUiViewsPlugin,

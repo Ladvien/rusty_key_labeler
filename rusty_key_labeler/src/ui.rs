@@ -1,4 +1,12 @@
-use bevy::{math::VectorSpace, prelude::*, sprite::Anchor};
+use bevy::{
+    math::VectorSpace,
+    prelude::*,
+    render::{
+        render_asset::RenderAssetUsages,
+        render_resource::{Extent3d, TextureDimension, TextureFormat},
+    },
+    sprite::Anchor,
+};
 
 use bevy_lunex::prelude::*;
 
@@ -241,4 +249,39 @@ impl UI {
 
         top_left_position
     }
+}
+
+fn color_to_float_array(color: Color) -> [f32; 4] {
+    let r = (color.to_linear().red) as f32;
+    let g = (color.to_linear().green) as f32;
+    let b = (color.to_linear().blue) as f32;
+    let a = (color.to_linear().alpha) as f32;
+
+    [r, g, b, a]
+}
+
+pub fn create_image_from_color(images: &mut ResMut<Assets<Image>>, color: Color) -> Handle<Image> {
+    let color_data = color_to_float_array(color);
+    let pixel_data = color_data
+        .into_iter()
+        .flat_map(|channel| channel.to_ne_bytes())
+        .collect::<Vec<_>>();
+
+    // println!("Pixel data: {:#?}", pixel_data);
+
+    let image = Image::new_fill(
+        Extent3d {
+            width: 4,
+            height: 4,
+            depth_or_array_layers: 1,
+        },
+        TextureDimension::D2,
+        &pixel_data,
+        TextureFormat::Rgba32Float,
+        RenderAssetUsages::RENDER_WORLD,
+    );
+
+    let texture_handle = images.add(image);
+
+    texture_handle
 }

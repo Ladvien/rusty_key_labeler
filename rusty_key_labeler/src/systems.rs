@@ -7,7 +7,7 @@ use crate::{
     bounding_boxes::{BoundingBoxMarker, BoundingBoxPainter},
     resources::{AppData, YoloProjectResource},
     settings::{MAIN_LAYER, UI_LAYER},
-    ui::{UiDataChanged, UiPanel, UI},
+    ui::{self, create_image_from_color, UiDataChanged, UiPanel, UI},
     Config, ImageData, ImageToLoad, MainCamera, SelectedImage, TestFlag, UiCamera, UiData,
 };
 
@@ -184,35 +184,6 @@ pub fn on_image_loaded_system(
     app_data: Res<AppData>,
     mut has_run: Local<bool>,
 ) {
-    // TODO: Clean up unwrap.
-
-    const CLR_1: Color = Color::srgb(0.168, 0.168, 0.168);
-    const CLR_2: Color = Color::srgb(0.109, 0.109, 0.109);
-    const BORDER_COLOR: Color = Color::srgb(0.569, 0.592, 0.647);
-    const CLR_4: Color = Color::srgb(0.902, 0.4, 0.004);
-
-    if let Some(ui_eid) = app_data.ui_eid {
-        if *has_run {
-            return;
-        }
-
-        let mut items = Vec::new();
-        for i in 0..10 {
-            items.push(VStackContainerItem {
-                text: format!("Item {}", i),
-                background_color: if i % 2 == 0 { CLR_1 } else { CLR_2 },
-                ..Default::default()
-            });
-        }
-        commands.spawn(VStackUpdatedItems {
-            vstack_eid: ui_eid,
-            items,
-        });
-
-        println!("UI updated");
-        *has_run = true;
-    }
-
     if let Some((entity, image_to_load)) = query.iter().next() {
         let image_handle: Handle<Image> = asset_server.load(image_to_load.path.clone());
 
@@ -253,18 +224,26 @@ pub fn on_image_loaded_system(
     }
 }
 
+#[warn(clippy::too_many_arguments)]
 pub fn next_and_previous_system(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    keyboard_input: Res<ButtonInput<KeyCode>>,
+    mut keyboard_input: ResMut<ButtonInput<KeyCode>>,
     mut app_data: ResMut<AppData>,
     project_resource: Res<YoloProjectResource>,
     query: Query<Entity, With<ImageToLoad>>,
     query_selected_images: Query<Entity, With<SelectedImage>>,
 ) {
-    if keyboard_input.just_pressed(KeyCode::ArrowRight) {
+    if query.iter().count() > 0 {
+        // TODO: This works, but a timer might be better.  Sometimes
+        // it goes to fast form me to see what's going on.
+        return;
+    }
+
+    // TODO: Needs to be 'pressed', but need to debounce.
+    if keyboard_input.pressed(KeyCode::ArrowRight) {
         app_data.index += 1;
-    } else if keyboard_input.just_pressed(KeyCode::ArrowLeft) {
+    } else if keyboard_input.pressed(KeyCode::ArrowLeft) {
         app_data.index -= 1;
     } else {
         return;
@@ -328,17 +307,20 @@ pub fn next_and_previous_system(
     for entity in query.iter() {
         commands.entity(entity).despawn();
     }
+
+    keyboard_input.clear();
 }
 
 pub fn paint_bounding_boxes_system(
     mut commands: Commands,
-    images: Res<Assets<Image>>,
+    mut images: ResMut<Assets<Image>>,
     query: Query<(Entity, &ImageData), With<SelectedImage>>,
     old_bounding_boxes: Query<Entity, With<BoundingBoxMarker>>,
     project_resource: Res<YoloProjectResource>,
     bb_painter: Res<BoundingBoxPainter>,
     app_data: Res<AppData>,
 ) {
+    // TODO: Clean up unwraps.
     if old_bounding_boxes.iter().count() > 0 {
         return;
     }
@@ -351,14 +333,32 @@ pub fn paint_bounding_boxes_system(
     {
         let mut children = Vec::new();
 
+        let mut ui_items = Vec::new();
+
         if let Some((image_eid, image_data)) = query.iter().next() {
             let image = images.get(&image_data.image).unwrap();
             let image_size = Vec2::new(image.width() as f32, image.height() as f32);
 
-            let bounding_boxes = bb_painter.get_boxes(&yolo_file, image_size);
-            for bounding_box in bounding_boxes {
+            for (index, entry) in yolo_file.entries.iter().enumerate() {
+                let bounding_box = bb_painter.get_box(index, entry, image_size);
                 let child_id = commands.spawn(bounding_box).id();
                 children.push(child_id);
+
+                let color = bb_painter.get_color(entry.class);
+                let item = VStackContainerItem {
+                    text: project_resource.0.config.export.class_map[&entry.class].clone(),
+                    image: Some(create_image_from_color(&mut images, color)),
+                    ..Default::default()
+                };
+
+                ui_items.push(item);
+            }
+
+            if let Some(ui_eid) = app_data.ui_eid {
+                commands.spawn(VStackUpdatedItems {
+                    items: ui_items,
+                    vstack_eid: ui_eid,
+                });
             }
 
             if children.is_empty() {
