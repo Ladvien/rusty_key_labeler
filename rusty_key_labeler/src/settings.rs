@@ -81,6 +81,7 @@ pub struct Settings {
     pub key_map: KeyMap,
     pub bounding_boxes: BoundingBoxSettings,
     pub ui_panel: UiPanelSettings,
+    pub delay_between_images: f32,
 }
 
 impl Default for KeyMap {
@@ -117,6 +118,7 @@ impl Default for Settings {
                 color: Color::srgba_u8(0, 0, 128, 128),
                 top_left_position: TopLeftPosition { x: 0, y: 0 },
             },
+            delay_between_images: 0.1,
         }
     }
 }
@@ -180,7 +182,8 @@ mod tests {
                         width: 0.2,
                         height: 0.15
                     }
-                }
+                },
+                delay_between_images: 0.1,
             }
         );
     }

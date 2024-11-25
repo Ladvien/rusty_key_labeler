@@ -6026,7 +6026,7 @@ dependencies = [
 
 [[package]]
 name = "yolo_io"
-version = "0.1.102"
+version = "0.1.103"
 dependencies = [
  "hashbrown 0.15.1",
  "image",

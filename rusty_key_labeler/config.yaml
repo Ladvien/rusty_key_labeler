@@ -38,6 +38,8 @@ settings:
       - (0, 255, 0, 255)
       - (0, 0, 255, 255)
 
+  delay_between_images: 0.2
+
   ui_panel:
     color: (50, 50, 200, 255)
     top_left_position:

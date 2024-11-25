@@ -1,6 +1,7 @@
 use bevy::{asset::LoadState, prelude::*, window::WindowResized};
 use bevy_lunex::prelude::MainUi;
 use bevy_ui_views::{VStack, VStackContainerItem, VStackUpdatedItems};
+use serde::de;
 use std::path::Path;
 
 use crate::{
@@ -8,7 +9,7 @@ use crate::{
     resources::{AppData, YoloProjectResource},
     settings::{MAIN_LAYER, UI_LAYER},
     ui::{self, create_image_from_color, UiDataChanged, UiPanel, UI},
-    Config, ImageData, ImageToLoad, MainCamera, SelectedImage, TestFlag, UiCamera, UiData,
+    Config, DebounceTimer, ImageData, ImageToLoad, MainCamera, SelectedImage, UiCamera, UiData,
 };
 
 pub fn setup(
@@ -91,91 +92,6 @@ pub fn setup(
     app_data.ui_eid = Some(vstack_eid);
 }
 
-pub fn on_resize_system(
-    commands: Commands,
-    resize_reader: EventReader<WindowResized>,
-    window: Query<&Window>,
-    mut ui: ResMut<UI>,
-) {
-    if resize_reader.is_empty() {
-        return;
-    }
-
-    if window.iter().count() > 1 {
-        panic!("More than one window found");
-    }
-
-    // let window = window.single();
-    // ui.on_window_resize(commands, window);
-}
-
-// pub fn setup_ui(
-//     mut commands: Commands,
-//     mut ui: ResMut<UI>,
-//     asset_server: Res<AssetServer>,
-//     window: Query<&Window>,
-//     query: Query<&UiData>,
-// ) {
-//     if window.iter().count() > 1 {
-//         panic!("More than one window found");
-//     }
-
-//     commands.spawn((
-//         // Add this marker component provided by Lunex.
-//         MainUi,
-//         // Our camera bundle with depth 1000.0 because UI starts at `0` and goes up with each layer.
-//         Camera2dBundle {
-//             camera: Camera {
-//                 // Render the UI on top of everything else.
-//                 order: 1,
-//                 ..default()
-//             },
-//             transform: Transform::from_xyz(0.0, 0.0, 1000.0),
-//             ..default()
-//         },
-//         UI_LAYER,
-//         UiCamera,
-//     ));
-
-//     ui.paint_ui(commands, asset_server, window.single(), None);
-// }
-
-// pub fn update_ui_panel(
-//     mut commands: Commands,
-//     change_flag: Query<Entity, With<UiDataChanged>>,
-//     main_ui: Query<Entity, With<MainUi>>,
-//     mut ui: ResMut<UI>,
-//     window: Query<&Window>,
-//     asset_server: Res<AssetServer>,
-//     query: Query<&ImageData, With<SelectedImage>>,
-// ) {
-//     if change_flag.iter().count() == 0 {
-//         return;
-//     }
-
-//     if window.iter().count() > 1 {
-//         panic!("More than one window found");
-//     }
-
-//     if change_flag.iter().count() > 1 {
-//         panic!("More than one UI panel found");
-//     }
-
-//     // Remove the UiDataChanged component
-//     for entity in change_flag.iter() {
-//         commands.entity(entity).remove::<UiDataChanged>();
-//     }
-
-//     // Despawn the old UI panel
-//     // for entity in main_ui.iter() {
-//     //     commands.entity(entity).despawn_recursive();
-//     // }
-
-//     // Paint the UI panel
-//     let data = query.iter().next();
-//     ui.paint_ui(commands, asset_server, window.single(), data);
-// }
-
 pub fn on_image_loaded_system(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
@@ -231,13 +147,24 @@ pub fn next_and_previous_system(
     mut keyboard_input: ResMut<ButtonInput<KeyCode>>,
     mut app_data: ResMut<AppData>,
     project_resource: Res<YoloProjectResource>,
-    query: Query<Entity, With<ImageToLoad>>,
+    config: Res<Config>,
+    mut query: Query<Entity, With<ImageToLoad>>,
     query_selected_images: Query<Entity, With<SelectedImage>>,
+    time: Res<Time>,
+    mut debounce_timer: Query<(Entity, &mut DebounceTimer)>,
 ) {
     if query.iter().count() > 0 {
         // TODO: This works, but a timer might be better.  Sometimes
         // it goes to fast form me to see what's going on.
         return;
+    }
+
+    for (entity, mut timer) in debounce_timer.iter_mut() {
+        timer.timer.tick(time.delta());
+        if !timer.timer.finished() {
+            return;
+        }
+        commands.entity(entity).despawn();
     }
 
     // TODO: Needs to be 'pressed', but need to debounce.
@@ -301,6 +228,13 @@ pub fn next_and_previous_system(
         },
         ui_data,
         MAIN_LAYER,
+    ));
+
+    commands.spawn((
+        Name::new("debounce_timer"),
+        DebounceTimer {
+            timer: Timer::from_seconds(config.settings.delay_between_images, TimerMode::Once),
+        },
     ));
 
     // Remove ImageToLoad component

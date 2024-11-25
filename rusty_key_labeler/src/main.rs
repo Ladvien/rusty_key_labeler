@@ -85,8 +85,6 @@ fn main() {
                 next_and_previous_system,
                 paint_bounding_boxes_system,
                 on_image_loaded_system,
-                on_resize_system,
-                // update_ui_panel,
             ),
         )
         .run();

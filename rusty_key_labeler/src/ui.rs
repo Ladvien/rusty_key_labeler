@@ -12,7 +12,7 @@ use bevy_lunex::prelude::*;
 
 use crate::{
     settings::{TopLeftPosition, UiPanelSettings, UiPanelSize, UI_LAYER},
-    ImageData, TestFlag, UiData,
+    ImageData, UiData,
 };
 
 pub const UI_Z_INDEX: f32 = 99.0;
@@ -138,7 +138,6 @@ impl UI {
                         ..Default::default()
                     },
                     // UiImage2dBundle::from(asset_server.load("background.png")),
-                    TestFlag,
                     UiPanel,
                     UI_LAYER,
                 ));

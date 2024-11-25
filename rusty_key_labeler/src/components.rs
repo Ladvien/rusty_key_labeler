@@ -39,4 +39,6 @@ pub struct UiData {
 }
 
 #[derive(Debug, Clone, Component)]
-pub struct TestFlag;
+pub struct DebounceTimer {
+    pub timer: Timer,
+}
