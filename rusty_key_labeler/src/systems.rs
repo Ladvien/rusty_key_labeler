@@ -1,15 +1,14 @@
-use bevy::{asset::LoadState, prelude::*, window::WindowResized};
-use bevy_lunex::prelude::MainUi;
+use bevy::{asset::LoadState, prelude::*};
 use bevy_ui_views::{VStack, VStackContainerItem, VStackUpdatedItems};
-use serde::de;
 use std::path::Path;
 
 use crate::{
     bounding_boxes::{BoundingBoxMarker, BoundingBoxPainter},
     resources::{AppData, YoloProjectResource},
     settings::{MAIN_LAYER, UI_LAYER},
-    ui::{self, create_image_from_color, UiDataChanged, UiPanel, UI},
-    Config, DebounceTimer, ImageData, ImageToLoad, MainCamera, SelectedImage, UiCamera, UiData,
+    ui::{create_image_from_color, UiDataChanged, UI},
+    Config, DebounceTimer, ImageData, ImageToLoad, MainCamera, SelectedImage, UIBottomPanel,
+    UILeftPanel, UiCamera, UiData,
 };
 
 pub fn setup(
@@ -75,6 +74,28 @@ pub fn setup(
         UiCamera,
     ));
 
+    // Spawn the UI Container
+    let ui_eid = commands
+        .spawn((
+            Name::new("UIContainer"),
+            NodeBundle {
+                // Here is where all the styling goes for the container, duh.
+                style: Style {
+                    flex_direction: FlexDirection::Column,
+                    left: Val::Px(0.0),
+                    top: Val::Px(0.0),
+                    width: Val::Percent(100.0),
+                    height: Val::Percent(100.0),
+                    ..default()
+                },
+                // background_color: BackgroundColor(Color::srgba(0.66, 0.03, 0.03, 0.03)), // DEBUG
+                ..default()
+            },
+            UILeftPanel,
+            UI_LAYER,
+        ))
+        .id();
+
     let vstack_eid = commands
         .spawn((
             Name::new("VStack"),
@@ -82,7 +103,7 @@ pub fn setup(
                 text: "ExtendedScrollView".to_string(),
                 position: Vec2::new(0.0, 0.0),
                 percent_width: 25.0,
-                percent_height: 100.0,
+                percent_height: 90.0,
                 layer: UI_LAYER,
                 ..Default::default()
             },
@@ -90,6 +111,34 @@ pub fn setup(
         .id();
 
     app_data.ui_eid = Some(vstack_eid);
+
+    commands.entity(ui_eid).push_children(&[vstack_eid]);
+
+    let bottom_ui_eid = commands
+        .spawn((
+            Name::new("bottom_ui_panel"),
+            NodeBundle {
+                // Here is where all the styling goes for the container, duh.
+                style: Style {
+                    // left: Val::Px(0.0),
+                    // top: Val::Px(0.0),
+                    width: Val::Percent(100.0),
+                    min_height: Val::Percent(10.0),
+                    // height: Val::Percent(100.0),
+                    // padding: UiRect::all(Val::Px(0.0)),
+                    // margin: UiRect::all(Val::Px(0.0)),
+                    // border: UiRect::all(Val::Px(0.0)),
+                    ..default()
+                },
+                background_color: BackgroundColor(Color::srgba(1.0, 0.0, 0.0, 1.0)),
+                ..default()
+            },
+            UIBottomPanel,
+            UI_LAYER,
+        ))
+        .id();
+
+    commands.entity(ui_eid).push_children(&[bottom_ui_eid]);
 }
 
 pub fn on_image_loaded_system(
@@ -98,7 +147,6 @@ pub fn on_image_loaded_system(
     images: Res<Assets<Image>>,
     query: Query<(Entity, &ImageToLoad), With<ImageToLoad>>,
     app_data: Res<AppData>,
-    mut has_run: Local<bool>,
 ) {
     if let Some((entity, image_to_load)) = query.iter().next() {
         let image_handle: Handle<Image> = asset_server.load(image_to_load.path.clone());
@@ -154,8 +202,6 @@ pub fn next_and_previous_system(
     mut debounce_timer: Query<(Entity, &mut DebounceTimer)>,
 ) {
     if query.iter().count() > 0 {
-        // TODO: This works, but a timer might be better.  Sometimes
-        // it goes to fast form me to see what's going on.
         return;
     }
 
@@ -191,6 +237,7 @@ pub fn next_and_previous_system(
         commands.entity(entity).despawn_recursive();
     }
 
+    // TODO: Clean up unwraps.
     let next_image = valid_pairs[app_data.index as usize]
         .clone()
         .image_path
@@ -199,12 +246,14 @@ pub fn next_and_previous_system(
 
     let ui_data = UiData {
         stem: valid_pairs[app_data.index as usize].name.clone(),
+        // TODO: Clean up unwraps.
         image_path: valid_pairs[app_data.index as usize]
             .image_path
             .clone()
             .unwrap()
             .to_string_lossy()
             .into_owned(),
+        // TODO: Clean up unwraps.
         label_path: valid_pairs[app_data.index as usize]
             .clone()
             .label_file

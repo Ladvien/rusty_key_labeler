@@ -42,3 +42,9 @@ pub struct UiData {
 pub struct DebounceTimer {
     pub timer: Timer,
 }
+
+#[derive(Debug, Clone, Component)]
+pub struct UILeftPanel;
+
+#[derive(Debug, Clone, Component)]
+pub struct UIBottomPanel;
