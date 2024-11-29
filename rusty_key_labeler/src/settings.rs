@@ -6,6 +6,12 @@ use crate::{bounding_boxes::BoundingBoxSettings, utils::srgba_string_to_color};
 pub const MAIN_LAYER: RenderLayers = RenderLayers::layer(0);
 pub const UI_LAYER: RenderLayers = RenderLayers::layer(1);
 
+// Default colors
+pub const UI_BACKGROUND_COLOR: Color = Color::srgba(0.0, 0.0, 0.5, 0.5);
+pub const UI_TEXT_COLOR: Color = Color::WHITE;
+pub const UI_INNER_BORDER_COLOR: Color = Color::WHITE;
+pub const UI_OUTER_BORDER_COLOR: Color = Color::WHITE;
+
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct KeyMap {
     pub zoom_in: KeyCode,
@@ -35,9 +41,44 @@ pub struct UiPanelSize {
 }
 
 #[derive(Debug, PartialEq, Clone, Serialize)]
+pub struct UiColors {
+    pub background: Color,
+    pub text: Color,
+    pub inner_border: Color,
+    pub outer_border: Color,
+}
+
+impl<'de> Deserialize<'de> for UiColors {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(Debug, Deserialize)]
+        struct UiColorsHelper {
+            background: String,
+            text: String,
+            inner_border: String,
+            outer_border: String,
+        }
+
+        let helper = UiColorsHelper::deserialize(deserializer)?;
+        let ui_colors = UiColors {
+            background: srgba_string_to_color(&helper.background).unwrap_or(UI_BACKGROUND_COLOR),
+            text: srgba_string_to_color(&helper.text).unwrap_or(UI_TEXT_COLOR),
+            inner_border: srgba_string_to_color(&helper.inner_border)
+                .unwrap_or(UI_INNER_BORDER_COLOR),
+            outer_border: srgba_string_to_color(&helper.outer_border)
+                .unwrap_or(UI_OUTER_BORDER_COLOR),
+        };
+
+        Ok(ui_colors)
+    }
+}
+
+#[derive(Debug, PartialEq, Clone, Serialize)]
 pub struct UiPanelSettings {
     pub top_left_position: TopLeftPosition,
-    pub color: Color,
+    pub colors: UiColors,
     #[serde(rename = "size")]
     pub size: UiPanelSize,
 }
@@ -50,21 +91,18 @@ impl<'de> Deserialize<'de> for UiPanelSettings {
         #[derive(Debug, Deserialize)]
         struct UiPanelSettingsHelper {
             size: Option<UiPanelSize>,
-            color: Option<String>,
+            colors: UiColors,
             top_left_position: Option<TopLeftPosition>,
         }
 
         let helper = UiPanelSettingsHelper::deserialize(deserializer)?;
-        let color =
-            srgba_string_to_color(&helper.color.unwrap_or("rgba(0, 0, 128, 128)".to_string()))
-                .ok_or_else(|| serde::de::Error::custom("Invalid color"))?;
 
         let ui_panel_settings = UiPanelSettings {
             size: helper.size.unwrap_or(UiPanelSize {
                 width: 0.2,
                 height: 0.15,
             }),
-            color,
+            colors: helper.colors,
             top_left_position: helper
                 .top_left_position
                 .unwrap_or(TopLeftPosition { x: 0, y: 0 }),
@@ -115,7 +153,12 @@ impl Default for Settings {
                     width: 0.2,
                     height: 0.15,
                 },
-                color: Color::srgba_u8(0, 0, 128, 128),
+                colors: UiColors {
+                    background: UI_BACKGROUND_COLOR,
+                    text: UI_TEXT_COLOR,
+                    inner_border: UI_INNER_BORDER_COLOR,
+                    outer_border: UI_OUTER_BORDER_COLOR,
+                },
                 top_left_position: TopLeftPosition { x: 0, y: 0 },
             },
             delay_between_images: 0.1,
@@ -176,7 +219,12 @@ mod tests {
                 key_map: KeyMap::default(),
                 bounding_boxes: BoundingBoxSettings::default(),
                 ui_panel: UiPanelSettings {
-                    color: Color::srgba_u8(0, 0, 128, 128),
+                    colors: UiColors {
+                        background: UI_BACKGROUND_COLOR,
+                        text: UI_TEXT_COLOR,
+                        inner_border: UI_INNER_BORDER_COLOR,
+                        outer_border: UI_OUTER_BORDER_COLOR
+                    },
                     top_left_position: TopLeftPosition { x: 0, y: 0 },
                     size: UiPanelSize {
                         width: 0.2,

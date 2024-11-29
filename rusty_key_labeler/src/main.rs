@@ -19,10 +19,10 @@ use systems::*;
 use ui::UI;
 use yolo_io::YoloProject;
 
-const CLR_1: Color = Color::srgb(0.168, 0.168, 0.168);
-const CLR_2: Color = Color::srgb(0.109, 0.109, 0.109);
-const BORDER_COLOR: Color = Color::srgb(0.569, 0.592, 0.647);
-const CLR_4: Color = Color::srgb(0.902, 0.4, 0.004);
+pub const UI_BACKGROUND_COLOR: Color = Color::srgba(0.07, 0.07, 0.2, 1.0); // Dark navy
+pub const UI_TEXT_COLOR: Color = Color::srgba(0.96, 0.47, 0.95, 1.0); // Neon pink
+pub const UI_INNER_BORDER_COLOR: Color = Color::srgba(0.19, 0.78, 0.91, 1.0); // Electric cyan
+pub const UI_OUTER_BORDER_COLOR: Color = Color::srgba(0.99, 0.82, 0.33, 1.0); // Bright gold
 
 fn main() {
     // Load YAML configuration file from file.

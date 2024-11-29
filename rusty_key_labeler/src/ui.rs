@@ -11,7 +11,7 @@ use bevy::{
 use bevy_lunex::prelude::*;
 
 use crate::{
-    settings::{TopLeftPosition, UiPanelSettings, UiPanelSize, UI_LAYER},
+    settings::{TopLeftPosition, UiColors, UiPanelSettings, UiPanelSize, UI_LAYER},
     ImageData, UiData,
 };
 
@@ -28,7 +28,7 @@ pub struct UI {
     size: UiPanelSize,
     original_top_left_position: TopLeftPosition,
     top_left_position: TopLeftPosition,
-    color: Color,
+    ui_colors: UiColors,
     old_ui_eid: Option<Entity>,
 }
 
@@ -38,7 +38,7 @@ impl UI {
             size: ui_data.size,
             original_top_left_position: ui_data.top_left_position.clone(),
             top_left_position: ui_data.top_left_position,
-            color: ui_data.color,
+            ui_colors: ui_data.colors,
             old_ui_eid: None,
         }
     }
@@ -130,7 +130,7 @@ impl UI {
                     // Add image to the entity
                     UiImage2dBundle {
                         sprite: Sprite {
-                            color: self.color,
+                            color: self.ui_colors.background,
                             custom_size: Some(Vec2::new(self.size.width, self.size.height)),
                             ..Default::default()
                         },

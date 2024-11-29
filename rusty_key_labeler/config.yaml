@@ -41,7 +41,12 @@ settings:
   delay_between_images: 0.2
 
   ui_panel:
-    color: (50, 50, 200, 255)
+    colors:
+      background: (23, 23, 28, 255)       # Sleek charcoal gray
+      text: (222, 235, 250, 255)          # Soft, clean white-blue
+      inner_border: (74, 174, 214, 255)   # Calm sky blue
+      outer_border: (84, 214, 148, 255)   # Vibrant mint green
+      
     top_left_position:
       x: 0
       y: 0

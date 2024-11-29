@@ -5,7 +5,7 @@ use std::path::Path;
 use crate::{
     bounding_boxes::{BoundingBoxMarker, BoundingBoxPainter},
     resources::{AppData, YoloProjectResource},
-    settings::{MAIN_LAYER, UI_LAYER},
+    settings::{UiColors, MAIN_LAYER, UI_LAYER},
     ui::{create_image_from_color, UiDataChanged, UI},
     Config, DebounceTimer, ImageData, ImageToLoad, MainCamera, SelectedImage, UIBottomPanel,
     UILeftPanel, UiCamera, UiData,
@@ -15,6 +15,7 @@ pub fn setup(
     mut commands: Commands,
     mut app_data: ResMut<AppData>,
     project_resource: Res<YoloProjectResource>,
+    config: Res<Config>,
     asset_server: Res<AssetServer>,
 ) {
     app_data.index = 0;
@@ -96,6 +97,8 @@ pub fn setup(
         ))
         .id();
 
+    let colors = config.settings.ui_panel.colors.clone();
+
     let vstack_eid = commands
         .spawn((
             Name::new("VStack"),
@@ -105,6 +108,7 @@ pub fn setup(
                 percent_width: 25.0,
                 percent_height: 90.0,
                 layer: UI_LAYER,
+                background_color: colors.background,
                 ..Default::default()
             },
         ))
@@ -302,6 +306,7 @@ pub fn paint_bounding_boxes_system(
     project_resource: Res<YoloProjectResource>,
     bb_painter: Res<BoundingBoxPainter>,
     app_data: Res<AppData>,
+    config: Res<Config>,
 ) {
     // TODO: Clean up unwraps.
     if old_bounding_boxes.iter().count() > 0 {
@@ -328,9 +333,21 @@ pub fn paint_bounding_boxes_system(
                 children.push(child_id);
 
                 let color = bb_painter.get_color(entry.class);
+
+                let mut item_background_color = config.settings.ui_panel.colors.background;
+
+                if index % 2 == 0 {
+                    item_background_color = item_background_color.lighter(0.01);
+                } else {
+                    item_background_color = item_background_color.darker(0.01);
+                }
+
                 let item = VStackContainerItem {
                     text: project_resource.0.config.export.class_map[&entry.class].clone(),
                     image: Some(create_image_from_color(&mut images, color)),
+                    background_color: item_background_color,
+                    text_color: config.settings.ui_panel.colors.text,
+                    border_color: config.settings.ui_panel.colors.inner_border,
                     ..Default::default()
                 };
 
