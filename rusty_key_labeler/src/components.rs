@@ -29,22 +29,6 @@ pub struct SelectedImage;
 pub struct MainCamera;
 
 #[derive(Debug, Clone, Component)]
-pub struct UiCamera;
-
-#[derive(Debug, Clone, Component)]
-pub struct UiData {
-    pub stem: String,
-    pub image_path: String,
-    pub label_path: String,
-}
-
-#[derive(Debug, Clone, Component)]
 pub struct DebounceTimer {
     pub timer: Timer,
 }
-
-#[derive(Debug, Clone, Component)]
-pub struct UILeftPanel;
-
-#[derive(Debug, Clone, Component)]
-pub struct UIBottomPanel;

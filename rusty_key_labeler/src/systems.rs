@@ -5,16 +5,16 @@ use std::path::Path;
 use crate::{
     bounding_boxes::{BoundingBoxMarker, BoundingBoxPainter},
     resources::{AppData, YoloProjectResource},
-    settings::{UiColors, MAIN_LAYER, UI_LAYER},
-    ui::{create_image_from_color, UiDataChanged, UI},
-    Config, DebounceTimer, ImageData, ImageToLoad, MainCamera, SelectedImage, UIBottomPanel,
-    UILeftPanel, UiCamera, UiData,
+    settings::{MAIN_LAYER, UI_LAYER},
+    ui::{create_image_from_color, Ui, UiCamera, UiData, UiDataChanged},
+    Config, DebounceTimer, ImageData, ImageToLoad, MainCamera, SelectedImage,
 };
 
 pub fn setup(
     mut commands: Commands,
     mut app_data: ResMut<AppData>,
     project_resource: Res<YoloProjectResource>,
+    ui: Res<Ui>,
     config: Res<Config>,
     asset_server: Res<AssetServer>,
 ) {
@@ -75,74 +75,9 @@ pub fn setup(
         UiCamera,
     ));
 
-    // Spawn the UI Container
-    let ui_eid = commands
-        .spawn((
-            Name::new("UIContainer"),
-            NodeBundle {
-                // Here is where all the styling goes for the container, duh.
-                style: Style {
-                    flex_direction: FlexDirection::Column,
-                    left: Val::Px(0.0),
-                    top: Val::Px(0.0),
-                    width: Val::Percent(100.0),
-                    height: Val::Percent(100.0),
-                    ..default()
-                },
-                // background_color: BackgroundColor(Color::srgba(0.66, 0.03, 0.03, 0.03)), // DEBUG
-                ..default()
-            },
-            UILeftPanel,
-            UI_LAYER,
-        ))
-        .id();
+    let ui_eid = ui.spawn_ui(&mut commands);
 
-    let colors = config.settings.ui_panel.colors.clone();
-
-    let vstack_eid = commands
-        .spawn((
-            Name::new("VStack"),
-            VStack {
-                text: "ExtendedScrollView".to_string(),
-                position: Vec2::new(0.0, 0.0),
-                percent_width: 25.0,
-                percent_height: 90.0,
-                layer: UI_LAYER,
-                background_color: colors.background,
-                ..Default::default()
-            },
-        ))
-        .id();
-
-    app_data.ui_eid = Some(vstack_eid);
-
-    commands.entity(ui_eid).push_children(&[vstack_eid]);
-
-    let bottom_ui_eid = commands
-        .spawn((
-            Name::new("bottom_ui_panel"),
-            NodeBundle {
-                // Here is where all the styling goes for the container, duh.
-                style: Style {
-                    // left: Val::Px(0.0),
-                    // top: Val::Px(0.0),
-                    width: Val::Percent(100.0),
-                    min_height: Val::Percent(10.0),
-                    // height: Val::Percent(100.0),
-                    // padding: UiRect::all(Val::Px(0.0)),
-                    // margin: UiRect::all(Val::Px(0.0)),
-                    // border: UiRect::all(Val::Px(0.0)),
-                    ..default()
-                },
-                background_color: BackgroundColor(Color::srgba(1.0, 0.0, 0.0, 1.0)),
-                ..default()
-            },
-            UIBottomPanel,
-            UI_LAYER,
-        ))
-        .id();
-
-    commands.entity(ui_eid).push_children(&[bottom_ui_eid]);
+    app_data.ui_eid = Some(ui_eid);
 }
 
 pub fn on_image_loaded_system(

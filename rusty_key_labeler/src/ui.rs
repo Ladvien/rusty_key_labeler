@@ -1,21 +1,32 @@
 use bevy::{
-    math::VectorSpace,
     prelude::*,
     render::{
         render_asset::RenderAssetUsages,
         render_resource::{Extent3d, TextureDimension, TextureFormat},
     },
-    sprite::Anchor,
 };
+use bevy_ui_views::VStack;
 
-use bevy_lunex::prelude::*;
-
-use crate::{
-    settings::{TopLeftPosition, UiColors, UiPanelSettings, UiPanelSize, UI_LAYER},
-    ImageData, UiData,
-};
+use crate::settings::{UiColors, UI_LAYER};
 
 pub const UI_Z_INDEX: f32 = 99.0;
+pub const PADDING: f32 = 5.0;
+
+#[derive(Debug, Clone, Component)]
+pub struct UiCamera;
+
+#[derive(Debug, Clone, Component)]
+pub struct UiData {
+    pub stem: String,
+    pub image_path: String,
+    pub label_path: String,
+}
+
+#[derive(Debug, Clone, Component)]
+pub struct UILeftPanel;
+
+#[derive(Debug, Clone, Component)]
+pub struct UIBottomPanel;
 
 #[derive(Debug, Component, Clone)]
 pub struct UiPanel;
@@ -23,230 +34,126 @@ pub struct UiPanel;
 #[derive(Debug, Clone, Component)]
 pub struct UiDataChanged;
 
-#[derive(Debug, Resource, Clone)]
-pub struct UI {
-    size: UiPanelSize,
-    original_top_left_position: TopLeftPosition,
-    top_left_position: TopLeftPosition,
-    ui_colors: UiColors,
-    old_ui_eid: Option<Entity>,
+#[derive(Debug, Clone, Resource)]
+pub struct Ui {
+    pub colors: UiColors,
+    pub font_size: f32,
+    pub font: Handle<Font>,
 }
 
-impl UI {
-    pub fn new(ui_data: UiPanelSettings) -> Self {
+impl Ui {
+    pub fn new(colors: &UiColors) -> Self {
         Self {
-            size: ui_data.size,
-            original_top_left_position: ui_data.top_left_position.clone(),
-            top_left_position: ui_data.top_left_position,
-            ui_colors: ui_data.colors,
-            old_ui_eid: None,
+            colors: colors.clone(),
+            font_size: 20.0,
+            font: Default::default(),
         }
     }
 
-    // pub fn update(&mut self, ui_data: UiPanelSettings, window: &Window) {
-    //     self.top_left_position =
-    //         self.get_ui_window_xy(&ui_data.top_left_position, &ui_data.size, window);
-    //     self.size = ui_data.size;
-    //     self.color = ui_data.color;
-    // }
-
-    // pub fn update_scale(&mut self, ui_data: UiPanelSettings, window: &Window) {}
-
-    pub fn on_window_resize(&mut self, mut commands: Commands, window: &Window) {
-        self.top_left_position =
-            self.get_ui_window_xy(&self.original_top_left_position, &self.size, window);
-        commands.spawn(UiDataChanged);
-    }
-
-    pub fn to_transform(&self, window: &Window) -> Transform {
-        let half_width = window.width() / 2.;
-        let half_height = window.height() / 2.;
-        let half_box_width = self.size.width / 2.;
-        let half_box_height = self.size.height / 2.;
-        let x = self.top_left_position.x as f32 - half_width + half_box_width;
-        let y = self.top_left_position.y as f32 - half_height + half_box_height;
-
-        let translation = Vec3::new(x, y, UI_Z_INDEX);
-
-        Transform::from_translation(translation)
-    }
-
-    pub fn paint_ui(
-        &mut self,
-        mut commands: Commands,
-        asset_server: Res<AssetServer>,
-        window: &Window,
-        data: Option<&ImageData>,
-    ) {
-        println!("{:#?}", data);
-
-        let x = self.top_left_position.x as f32;
-        let y = self.top_left_position.y as f32;
-
-        let bottom_left_position = Ab((
-            window.width() - self.size.width,
-            window.height() - self.size.height,
-        ));
-
-        let font_handle = asset_server.load("RobotoMono-Regular.ttf");
-
-        // Unwrap UI data.
-        let stem = data.map(|d| d.stem.clone()).unwrap_or(String::from(""));
-
-        // Spawn UiTree
-        let root = UiTreeBundle::<MainUi> {
-            // transform,
-            tree: UiTree::new2d("Root"),
-            ..default()
-        };
-
-        let new_ui_eid = commands
+    pub fn spawn_ui(&self, commands: &mut Commands) -> Entity {
+        // Spawn the UI Container
+        let ui_eid = commands
             .spawn((
-                root.clone(),
-                Name::new("root"),
-                SourceFromCamera,
-                UiPanel,
+                Name::new("UIContainer"),
+                NodeBundle {
+                    style: Style {
+                        flex_direction: FlexDirection::Column,
+                        left: Val::Px(0.0),
+                        top: Val::Px(0.0),
+                        width: Val::Percent(100.0),
+                        height: Val::Percent(100.0),
+                        ..default()
+                    },
+                    transform: Transform {
+                        translation: Vec3::new(0.0, 0.0, UI_Z_INDEX),
+                        ..default()
+                    },
+                    ..default()
+                },
+                UILeftPanel,
                 UI_LAYER,
             ))
-            .with_children(|ui| {
-                ui.spawn((
-                    // Link the entity
-                    UiLink::<MainUi>::path("root"),
-                    // Specify UI layout
-                    UiLayout::window()
-                        .pos(bottom_left_position)
-                        .size(Ab(Vec2::new(self.size.width, self.size.height)))
-                        .anchor(Anchor::TopLeft)
-                        .pack::<Base>(),
-                ));
+            .id();
 
-                ui.spawn((
-                    // Link the entity
-                    UiLink::<MainUi>::path("root/rectangle"),
-                    // Specify UI layout
-                    UiLayout::solid()
-                        .size(Ab(Vec2::new(self.size.width, self.size.height)))
-                        .pack::<Base>(),
-                    // Add image to the entity
-                    UiImage2dBundle {
-                        sprite: Sprite {
-                            color: self.ui_colors.background,
-                            custom_size: Some(Vec2::new(self.size.width, self.size.height)),
-                            ..Default::default()
-                        },
-                        transform: Transform::from_translation(Vec3::new(x, y, UI_Z_INDEX)),
+        let vstack_eid = commands
+            .spawn((
+                Name::new("VStack"),
+                VStack {
+                    text: "ExtendedScrollView".to_string(),
+                    position: Vec2::new(0.0, 0.0),
+                    percent_width: 25.0,
+                    percent_height: 90.0,
+                    layer: UI_LAYER,
+                    background_color: self.colors.background,
+                    border_color: self.colors.outer_border,
+                    border: UiRect {
+                        top: Val::Px(1.0),
+                        left: Val::Px(1.0),
+                        right: Val::Px(1.0),
                         ..Default::default()
                     },
-                    // UiImage2dBundle::from(asset_server.load("background.png")),
-                    UiPanel,
-                    UI_LAYER,
-                ));
+                    ..Default::default()
+                },
+            ))
+            .id();
 
-                // ui.spawn((
-                //     // Link this widget
-                //     UiLink::<MainUi>::path("root/rectangle/label"),
-                //     // Here we can define where we want to position our text within the parent node,
-                //     // don't worry about size, that is picked up and overwritten automaticaly by Lunex to match text size.
-                //     UiLayout::window()
-                //         .pos(main_label_spacing)
-                //         .anchor(Anchor::TopLeft)
-                //         .pack::<Base>(),
-                //     // Add text
-                //     UiText2dBundle {
-                //         text: Text::from_section(
-                //             "Info:",
-                //             TextStyle {
-                //                 font: font_handle.clone(),
-                //                 font_size: 12.0,
-                //                 color: Color::WHITE,
-                //             },
-                //         ),
-                //         ..default()
-                //     },
-                //     UiPanel,
-                //     UI_LAYER,
-                // ));
+        commands.entity(ui_eid).push_children(&[vstack_eid]);
 
-                ui.spawn((
-                    UiLink::<MainUi>::path("root/rectangle/image_index"),
-                    UiLayout::window()
-                        .pos(Ab((5.0, 5.0)))
-                        .anchor(Anchor::TopLeft)
-                        .pack::<Base>(),
-                    UiText2dBundle {
-                        text: Text::from_section(
-                            format!(
-                                "Image Index: {} of {}",
-                                data.map(|d| d.index).unwrap_or(0),
-                                data.map(|d| d.total_images).unwrap_or(0)
-                            ),
-                            TextStyle {
-                                font: font_handle.clone(),
-                                font_size: 12.0,
-                                color: Color::WHITE,
-                            },
-                        ),
+        let bottom_ui_eid = commands
+            .spawn((
+                Name::new("bottom_ui_panel"),
+                NodeBundle {
+                    // Here is where all the styling goes for the container, duh.
+                    style: Style {
+                        width: Val::Percent(100.0),
+                        min_height: Val::Percent(10.0),
+                        border: UiRect::all(Val::Px(1.0)),
+                        padding: UiRect {
+                            left: Val::Px(PADDING),
+                            right: Val::Px(PADDING),
+                            top: Val::Px(PADDING),
+                            bottom: Val::Px(PADDING),
+                        },
                         ..default()
                     },
-                    UiPanel,
-                    UI_LAYER,
-                ));
-
-                ui.spawn((
-                    UiLink::<MainUi>::path("root/rectangle/image_name"),
-                    UiLayout::window()
-                        .anchor(Anchor::TopLeft)
-                        .pos(Ab((5.0, 20.0)))
-                        .pack::<Base>(),
-                    UiText2dBundle {
-                        text: Text::from_section(
-                            format!("Image Name: {}", stem),
-                            TextStyle {
-                                font: font_handle.clone(),
-                                font_size: 12.0,
-                                color: Color::WHITE,
-                            },
-                        ),
+                    border_color: self.colors.outer_border.into(),
+                    transform: Transform {
+                        translation: Vec3::new(0.0, 0.0, UI_Z_INDEX),
                         ..default()
                     },
-                    UiPanel,
-                    UI_LAYER,
-                ));
+                    background_color: BackgroundColor(self.colors.background),
+                    ..default()
+                },
+                UIBottomPanel,
+                UI_LAYER,
+            ))
+            .with_children(|parent| {
+                parent.spawn((TextBundle {
+                    style: Style {
+                        min_height: Val::Px(20.0),
+                        min_width: Val::Px(100.0),
+                        ..default()
+                    },
+                    text: Text {
+                        sections: vec![TextSection {
+                            value: String::from("0/0"),
+                            style: TextStyle {
+                                font_size: self.font_size,
+                                color: self.colors.text,
+                                ..default()
+                            },
+                        }],
+                        ..Default::default()
+                    },
+                    // background_color: BackgroundColor::from(),
+                    ..Default::default()
+                },));
             })
             .id();
 
-        if let Some(old_ui_eid) = self.old_ui_eid {
-            commands.entity(old_ui_eid).despawn_recursive();
-        }
+        commands.entity(ui_eid).push_children(&[bottom_ui_eid]);
 
-        self.old_ui_eid = Some(new_ui_eid);
-    }
-
-    // Privates
-    fn get_ui_window_xy(
-        &self,
-        origin: &TopLeftPosition,
-        box_size: &UiPanelSize,
-        window: &Window,
-    ) -> TopLeftPosition {
-        println!("TopLeftPosition: {:#?}", origin);
-        println!(
-            "Window: width {:#?}, height {:#?}",
-            window.width(),
-            window.height()
-        );
-
-        let half_width = window.width() / 2.;
-        let half_height = window.height() / 2.;
-        let half_box_width = box_size.width / 2.;
-        let half_box_height = box_size.height / 2.;
-
-        let x = (origin.x as f32 - half_width + half_box_width) as i32;
-        let y = (origin.y as f32 - half_height + half_box_height) as i32;
-
-        let top_left_position = TopLeftPosition { x, y };
-
-        top_left_position
+        ui_eid
     }
 }
 

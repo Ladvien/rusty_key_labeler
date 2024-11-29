@@ -1,4 +1,8 @@
-use bevy::{color::Color, prelude::KeyCode, render::view::RenderLayers};
+use bevy::{
+    color::Color,
+    prelude::{KeyCode, Resource},
+    render::view::RenderLayers,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::{bounding_boxes::BoundingBoxSettings, utils::srgba_string_to_color};
@@ -40,7 +44,7 @@ pub struct UiPanelSize {
     pub height: f32,
 }
 
-#[derive(Debug, PartialEq, Clone, Serialize)]
+#[derive(Debug, PartialEq, Clone, Serialize, Resource)]
 pub struct UiColors {
     pub background: Color,
     pub text: Color,

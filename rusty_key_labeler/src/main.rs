@@ -15,14 +15,10 @@ use bevy_vector_shapes::prelude::*;
 use bounding_boxes::BoundingBoxPainter;
 use components::*;
 use resources::*;
+use settings::UiColors;
 use systems::*;
-use ui::UI;
+use ui::Ui;
 use yolo_io::YoloProject;
-
-pub const UI_BACKGROUND_COLOR: Color = Color::srgba(0.07, 0.07, 0.2, 1.0); // Dark navy
-pub const UI_TEXT_COLOR: Color = Color::srgba(0.96, 0.47, 0.95, 1.0); // Neon pink
-pub const UI_INNER_BORDER_COLOR: Color = Color::srgba(0.19, 0.78, 0.91, 1.0); // Electric cyan
-pub const UI_OUTER_BORDER_COLOR: Color = Color::srgba(0.99, 0.82, 0.33, 1.0); // Bright gold
 
 fn main() {
     // Load YAML configuration file from file.
@@ -45,8 +41,6 @@ fn main() {
 
     let project_resource = YoloProjectResource(project.unwrap());
 
-    let ui = UI::new(config.settings.ui_panel.clone());
-
     let bb_painter = BoundingBoxPainter::new(
         &config.settings.bounding_boxes,
         &config.project_config.export.class_map,
@@ -60,6 +54,8 @@ fn main() {
         ui_eid: None,
     };
 
+    let ui = Ui::new(&config.settings.ui_panel.colors);
+
     App::new()
         .init_resource::<Assets<ColorMaterial>>()
         .add_plugins((
@@ -71,10 +67,10 @@ fn main() {
             // UiDebugPlugin::<MainUi>::new(),
         ))
         .insert_resource(config)
-        .insert_resource(ui)
         .insert_resource(bb_painter)
         .insert_resource(project_resource)
         .insert_resource(app_data)
+        .insert_resource(ui)
         .add_systems(
             Startup,
             (
