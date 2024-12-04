@@ -1,12 +1,15 @@
 use bevy::{asset::LoadState, prelude::*};
-use bevy_ui_views::{VStack, VStackContainerItem, VStackUpdatedItems};
+use bevy_ui_views::VStackUpdatedItems;
 use std::path::Path;
 
 use crate::{
     bounding_boxes::{BoundingBoxMarker, BoundingBoxPainter},
     resources::{AppData, YoloProjectResource},
     settings::{MAIN_LAYER, UI_LAYER},
-    ui::{create_image_from_color, Ui, UiCamera, UiData, UiDataChanged},
+    ui::{
+        CurrentFileNameLabelUpdateNeeded, UIBottomPanel, UILeftPanel, Ui, UiLabelDataChanged,
+        UiLabelingIndexUpdateNeeded,
+    },
     Config, DebounceTimer, ImageData, ImageToLoad, MainCamera, SelectedImage,
 };
 
@@ -14,8 +17,6 @@ pub fn setup(
     mut commands: Commands,
     mut app_data: ResMut<AppData>,
     project_resource: Res<YoloProjectResource>,
-    ui: Res<Ui>,
-    config: Res<Config>,
     asset_server: Res<AssetServer>,
 ) {
     app_data.index = 0;
@@ -59,72 +60,6 @@ pub fn setup(
         MAIN_LAYER,
         MainCamera,
     ));
-
-    commands.spawn((
-        Name::new("ui_camera"),
-        Camera2dBundle {
-            camera: Camera {
-                // Render the UI on top of everything else.
-                order: 1,
-                ..default()
-            },
-            transform: Transform::from_xyz(0., 0., 10.).looking_at(Vec3::ZERO, Vec3::Y),
-            ..default()
-        },
-        UI_LAYER,
-        UiCamera,
-    ));
-
-    let ui_eid = ui.spawn_ui(&mut commands);
-
-    app_data.ui_eid = Some(ui_eid);
-}
-
-pub fn on_image_loaded_system(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    images: Res<Assets<Image>>,
-    query: Query<(Entity, &ImageToLoad), With<ImageToLoad>>,
-    app_data: Res<AppData>,
-) {
-    if let Some((entity, image_to_load)) = query.iter().next() {
-        let image_handle: Handle<Image> = asset_server.load(image_to_load.path.clone());
-
-        match asset_server.get_load_state(&image_handle) {
-            Some(state) => {
-                if state == LoadState::Loaded {
-                    // Remove ImageToLoad component and add SelectedImage component
-                    commands.entity(entity).remove::<ImageToLoad>();
-                    commands.entity(entity).insert(SelectedImage);
-
-                    let file_stem = Path::new(&image_to_load.path)
-                        .file_stem()
-                        .unwrap()
-                        .to_string_lossy()
-                        .into_owned();
-
-                    let image = images.get(&image_handle).unwrap();
-
-                    let image_data = ImageData {
-                        path: image_to_load.path.clone(),
-                        stem: file_stem,
-                        image: image_handle,
-                        width: image.width() as f32,
-                        height: image.height() as f32,
-                        yolo_file: image_to_load.yolo_file.clone(),
-                        index: app_data.index,
-                        total_images: app_data.total_images,
-                    };
-
-                    // println!("Image loaded: {:#?}", image_data);
-                    commands.entity(entity).insert((image_data, UiDataChanged));
-                }
-            }
-            None => {
-                println!("Image not loaded");
-            }
-        }
-    }
 }
 
 #[warn(clippy::too_many_arguments)]
@@ -135,12 +70,13 @@ pub fn next_and_previous_system(
     mut app_data: ResMut<AppData>,
     project_resource: Res<YoloProjectResource>,
     config: Res<Config>,
-    mut query: Query<Entity, With<ImageToLoad>>,
+    query_image_to_load: Query<Entity, With<ImageToLoad>>,
     query_selected_images: Query<Entity, With<SelectedImage>>,
     time: Res<Time>,
     mut debounce_timer: Query<(Entity, &mut DebounceTimer)>,
 ) {
-    if query.iter().count() > 0 {
+    // This query ensures the image is loaded before we can move to the next one.
+    if query_image_to_load.iter().count() > 0 {
         return;
     }
 
@@ -183,23 +119,6 @@ pub fn next_and_previous_system(
         .unwrap();
     let next_image = next_image.as_path().to_string_lossy().into_owned();
 
-    let ui_data = UiData {
-        stem: valid_pairs[app_data.index as usize].name.clone(),
-        // TODO: Clean up unwraps.
-        image_path: valid_pairs[app_data.index as usize]
-            .image_path
-            .clone()
-            .unwrap()
-            .to_string_lossy()
-            .into_owned(),
-        // TODO: Clean up unwraps.
-        label_path: valid_pairs[app_data.index as usize]
-            .clone()
-            .label_file
-            .unwrap()
-            .path,
-    };
-
     commands.spawn((
         Name::new("selected_image"),
         SpriteBundle {
@@ -214,10 +133,14 @@ pub fn next_and_previous_system(
                 .clone()
                 .unwrap(),
         },
-        ui_data,
         MAIN_LAYER,
     ));
 
+    // Update index label
+    let index_label = format!("{}/{}", app_data.index + 1, app_data.total_images + 1);
+    commands.spawn(UiLabelingIndexUpdateNeeded(index_label));
+
+    // Debounce timer
     commands.spawn((
         Name::new("debounce_timer"),
         DebounceTimer {
@@ -226,11 +149,70 @@ pub fn next_and_previous_system(
     ));
 
     // Remove ImageToLoad component
-    for entity in query.iter() {
+    for entity in query_image_to_load.iter() {
         commands.entity(entity).despawn();
     }
 
     keyboard_input.clear();
+}
+
+pub fn load_image_system(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    images: Res<Assets<Image>>,
+    query: Query<(Entity, &ImageToLoad), With<ImageToLoad>>,
+    app_data: Res<AppData>,
+) {
+    if let Some((entity, image_to_load)) = query.iter().next() {
+        let image_handle: Handle<Image> = asset_server.load(image_to_load.path.clone());
+
+        match asset_server.get_load_state(&image_handle) {
+            Some(state) => {
+                if state == LoadState::Loaded {
+                    // Remove ImageToLoad component and add SelectedImage component
+                    commands.entity(entity).remove::<ImageToLoad>();
+                    commands.entity(entity).insert(SelectedImage);
+
+                    let file_stem = Path::new(&image_to_load.path)
+                        .file_stem()
+                        .unwrap()
+                        .to_string_lossy()
+                        .into_owned();
+
+                    let image = images.get(&image_handle).unwrap();
+
+                    let image_data = ImageData {
+                        path: image_to_load.path.clone(),
+                        stem: file_stem.clone(),
+                        image: image_handle,
+                        width: image.width() as f32,
+                        height: image.height() as f32,
+                        yolo_file: image_to_load.yolo_file.clone(),
+                        index: app_data.index,
+                        total_images: app_data.total_images,
+                    };
+
+                    commands.spawn(CurrentFileNameLabelUpdateNeeded(file_stem));
+
+                    // TODO: If we pass in the index and total_images, and number of
+                    //      non-empty label files, we can use the same system
+                    //      for progress bar.
+                    commands.spawn(UiLabelingIndexUpdateNeeded(format!(
+                        "{}/{}",
+                        app_data.index + 1,
+                        app_data.total_images + 1
+                    )));
+
+                    commands
+                        .entity(entity)
+                        .insert((image_data, UiLabelDataChanged));
+                }
+            }
+            None => {
+                println!("Image not loaded");
+            }
+        }
+    }
 }
 
 pub fn paint_bounding_boxes_system(
@@ -241,7 +223,7 @@ pub fn paint_bounding_boxes_system(
     project_resource: Res<YoloProjectResource>,
     bb_painter: Res<BoundingBoxPainter>,
     app_data: Res<AppData>,
-    config: Res<Config>,
+    ui: Res<Ui>,
 ) {
     // TODO: Clean up unwraps.
     if old_bounding_boxes.iter().count() > 0 {
@@ -268,23 +250,13 @@ pub fn paint_bounding_boxes_system(
                 children.push(child_id);
 
                 let color = bb_painter.get_color(entry.class);
+                let image = ui.create_image_from_color(color);
+                let image_handle = images.add(image);
 
-                let mut item_background_color = config.settings.ui_panel.colors.background;
-
-                if index % 2 == 0 {
-                    item_background_color = item_background_color.lighter(0.01);
-                } else {
-                    item_background_color = item_background_color.darker(0.01);
-                }
-
-                let item = VStackContainerItem {
-                    text: project_resource.0.config.export.class_map[&entry.class].clone(),
-                    image: Some(create_image_from_color(&mut images, color)),
-                    background_color: item_background_color,
-                    text_color: config.settings.ui_panel.colors.text,
-                    border_color: config.settings.ui_panel.colors.inner_border,
-                    ..Default::default()
-                };
+                let item = ui.create_bounding_box_entry(
+                    &project_resource.0.config.export.class_map[&entry.class],
+                    image_handle,
+                );
 
                 ui_items.push(item);
             }
@@ -296,32 +268,79 @@ pub fn paint_bounding_boxes_system(
                 });
             }
 
-            if children.is_empty() {
-                return;
+            if !children.is_empty() {
+                commands.entity(image_eid).push_children(&children);
             }
-            commands.entity(image_eid).push_children(&children);
         }
     }
 }
 
-pub fn zoom_system(
-    mut query: Query<&mut OrthographicProjection, With<MainCamera>>,
-    keyboard_input: Res<ButtonInput<KeyCode>>,
+// WILO: I'd like to stop changing the position of the camera
+// and instead change the position and or scale of the image.
+pub fn image_view_system(
+    mut commands: Commands,
     time: Res<Time>,
     config: Res<Config>,
+    window: Query<&Window>,
+    just_selected: Query<(Entity, &ImageData), Added<SelectedImage>>,
+    mut transforms: ParamSet<(
+        Query<(Entity, &ImageData, &mut Transform), Added<SelectedImage>>,
+        Query<&Transform, With<UILeftPanel>>,
+        Query<&Transform, With<UIBottomPanel>>,
+    )>,
 ) {
-    // TODO: I need to figure out how to separate the UI from the camera zoom.
-    //       maybe layers?
-    for mut projection in query.iter_mut() {
-        let mut log_scale = projection.scale.ln();
+    // 1. Ensure the image is maxed height or width according to the viewport size.
+    // 2. Center the image on first selected.
+    // 3. Allow panning and zooming.
 
-        if keyboard_input.pressed(config.settings.key_map.zoom_in) {
-            log_scale -= config.settings.zoom_factor * time.delta_seconds();
-        }
-        if keyboard_input.pressed(config.settings.key_map.zoom_out) {
-            log_scale += config.settings.zoom_factor * time.delta_seconds();
-        }
-        projection.scale = log_scale.exp();
+    // WILO: Re-think approach, this isn't working.
+
+    let window = window.iter().next().unwrap(); // TODO: handle
+
+    for (entity, image_data) in just_selected.iter() {
+        let mut left_panel_width: f32 = 0.0;
+        let mut bottom_panel_height: f32 = 0.0;
+
+        let left_panel_query = transforms.p1();
+        match left_panel_query.get_single() {
+            Ok(value) => left_panel_width = value.translation.x,
+            Err(_) => {
+                error!("Left panel not found");
+                return;
+            }
+        };
+
+        let bottom_panel_query = transforms.p2();
+        match bottom_panel_query.get_single() {
+            Ok(value) => bottom_panel_height = value.translation.y,
+            Err(_) => {
+                error!("Bottom panel not found");
+                return;
+            }
+        };
+
+        println!("Window width: {}", window.width());
+        println!("Window height: {}", window.height());
+        println!("Left panel width: {}", left_panel_width);
+        println!("Bottom panel height: {}", bottom_panel_height);
+
+        commands.spawn((
+            Name::new("viewport"),
+            NodeBundle {
+                style: Style {
+                    left: Val::Px(0.0),
+                    top: Val::Px(0.0),
+                    border: UiRect::all(Val::Px(4.0)),
+                    width: Val::Px(window.width()),
+                    height: Val::Px(window.height() - bottom_panel_height / 2.),
+                    ..Default::default()
+                },
+                border_color: BorderColor::from(Color::srgba(0.1, 0.1, 1.0, 1.0)),
+                background_color: BackgroundColor::from(Color::srgba(1.0, 0.1, 0.0, 1.0)),
+                ..Default::default()
+            },
+            UI_LAYER,
+        ));
     }
 }
 

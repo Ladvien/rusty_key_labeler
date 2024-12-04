@@ -38,9 +38,11 @@ settings:
       - (0, 255, 0, 255)
       - (0, 0, 255, 255)
 
-  delay_between_images: 0.2
+  delay_between_images: 0.1
 
   ui_panel:
+    font: "RobotoMono-Regular.ttf"
+    font_size: 20
     colors:
       background: (23, 23, 28, 255)       # Sleek charcoal gray
       text: (222, 235, 250, 255)          # Soft, clean white-blue
@@ -70,8 +72,4 @@ settings:
     # redo: 114
     # toggle: 116
     # toggle_all
-
-
-
-
 

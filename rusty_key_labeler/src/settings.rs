@@ -85,6 +85,8 @@ pub struct UiPanelSettings {
     pub colors: UiColors,
     #[serde(rename = "size")]
     pub size: UiPanelSize,
+    pub font_size: f32,
+    pub font_path: String,
 }
 
 impl<'de> Deserialize<'de> for UiPanelSettings {
@@ -110,6 +112,8 @@ impl<'de> Deserialize<'de> for UiPanelSettings {
             top_left_position: helper
                 .top_left_position
                 .unwrap_or(TopLeftPosition { x: 0, y: 0 }),
+            font_size: 16.0,
+            font_path: "RobotoMono-Regular.ttf".to_string(),
         };
 
         Ok(ui_panel_settings)
@@ -164,6 +168,8 @@ impl Default for Settings {
                     outer_border: UI_OUTER_BORDER_COLOR,
                 },
                 top_left_position: TopLeftPosition { x: 0, y: 0 },
+                font_size: 16.0,
+                font_path: "RobotoMono-Regular.ttf".to_string(),
             },
             delay_between_images: 0.1,
         }
@@ -233,7 +239,9 @@ mod tests {
                     size: UiPanelSize {
                         width: 0.2,
                         height: 0.15
-                    }
+                    },
+                    font_size: 16.0,
+                    font_path: "RobotoMono-Regular.ttf".to_string()
                 },
                 delay_between_images: 0.1,
             }

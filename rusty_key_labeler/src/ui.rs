@@ -5,9 +5,12 @@ use bevy::{
         render_resource::{Extent3d, TextureDimension, TextureFormat},
     },
 };
-use bevy_ui_views::VStack;
+use bevy_ui_views::{VStack, VStackContainerItem};
 
-use crate::settings::{UiColors, UI_LAYER};
+use crate::{
+    settings::{UiColors, UI_LAYER},
+    AppData,
+};
 
 pub const UI_Z_INDEX: f32 = 99.0;
 pub const PADDING: f32 = 5.0;
@@ -16,37 +19,101 @@ pub const PADDING: f32 = 5.0;
 pub struct UiCamera;
 
 #[derive(Debug, Clone, Component)]
-pub struct UiData {
-    pub stem: String,
-    pub image_path: String,
-    pub label_path: String,
-}
-
-#[derive(Debug, Clone, Component)]
 pub struct UILeftPanel;
 
 #[derive(Debug, Clone, Component)]
 pub struct UIBottomPanel;
 
-#[derive(Debug, Component, Clone)]
-pub struct UiPanel;
+#[derive(Debug, Clone, Component)]
+pub struct UiLabelDataChanged;
+
+// UI Part Markers
+#[derive(Debug, Clone, Component)]
+pub struct UiLabelingIndex;
 
 #[derive(Debug, Clone, Component)]
-pub struct UiDataChanged;
+pub struct UiLabelingIndexUpdateNeeded(pub String);
+
+#[derive(Debug, Clone, Component)]
+pub struct CurrentFileNameLabel;
+
+#[derive(Debug, Clone, Component)]
+pub struct CurrentFileNameLabelUpdateNeeded(pub String);
+
+// END UI Part Markers
 
 #[derive(Debug, Clone, Resource)]
 pub struct Ui {
     pub colors: UiColors,
     pub font_size: f32,
-    pub font: Handle<Font>,
+    pub font_path: String,
+    font_handle: Option<Handle<Font>>,
+}
+
+// Systems on Setup
+pub fn ui_setup(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut app_data: ResMut<AppData>,
+    mut ui: ResMut<Ui>,
+) {
+    let font_handle: Handle<Font> = asset_server.load(ui.font_path.clone());
+    ui.font_handle = Some(font_handle.clone());
+
+    commands.spawn((
+        Name::new("ui_camera"),
+        Camera2dBundle {
+            camera: Camera {
+                // Render the UI on top of everything else.
+                order: 1,
+                ..default()
+            },
+            transform: Transform::from_xyz(0., 0., 10.).looking_at(Vec3::ZERO, Vec3::Y),
+            ..default()
+        },
+        UI_LAYER,
+        UiCamera,
+    ));
+
+    let ui_eid = ui.spawn_ui(&mut commands);
+
+    app_data.ui_eid = Some(ui_eid);
+}
+
+// Systems on Update
+pub fn update_labeling_index(
+    mut commands: Commands,
+    mut query: Query<&mut Text, With<UiLabelingIndex>>,
+    update_query: Query<(Entity, &UiLabelingIndexUpdateNeeded)>,
+) {
+    for (update_eid, update) in update_query.iter() {
+        for mut text in query.iter_mut() {
+            text.sections[0].value = update.0.clone();
+            commands.entity(update_eid).despawn();
+        }
+    }
+}
+
+pub fn update_current_file_name_label(
+    mut commands: Commands,
+    mut query: Query<&mut Text, With<CurrentFileNameLabel>>,
+    update_query: Query<(Entity, &CurrentFileNameLabelUpdateNeeded)>,
+) {
+    for (update_eid, update) in update_query.iter() {
+        for mut text in query.iter_mut() {
+            text.sections[0].value = update.0.clone();
+            commands.entity(update_eid).despawn();
+        }
+    }
 }
 
 impl Ui {
-    pub fn new(colors: &UiColors) -> Self {
+    pub fn new(colors: &UiColors, font_size: f32, font_path: &str) -> Self {
         Self {
             colors: colors.clone(),
-            font_size: 20.0,
-            font: Default::default(),
+            font_size,
+            font_path: font_path.to_string(),
+            font_handle: None,
         }
     }
 
@@ -54,7 +121,7 @@ impl Ui {
         // Spawn the UI Container
         let ui_eid = commands
             .spawn((
-                Name::new("UIContainer"),
+                Name::new("left_ui_panel"),
                 NodeBundle {
                     style: Style {
                         flex_direction: FlexDirection::Column,
@@ -127,27 +194,54 @@ impl Ui {
                 UIBottomPanel,
                 UI_LAYER,
             ))
-            .with_children(|parent| {
-                parent.spawn((TextBundle {
-                    style: Style {
-                        min_height: Val::Px(20.0),
-                        min_width: Val::Px(100.0),
-                        ..default()
-                    },
-                    text: Text {
-                        sections: vec![TextSection {
-                            value: String::from("0/0"),
-                            style: TextStyle {
-                                font_size: self.font_size,
-                                color: self.colors.text,
-                                ..default()
-                            },
-                        }],
+            .with_children(|bottom_ui_panel| {
+                bottom_ui_panel.spawn((
+                    Name::new("labeling_index"),
+                    TextBundle {
+                        style: Style {
+                            min_height: Val::Px(20.0),
+                            min_width: Val::Px(100.0),
+                            ..default()
+                        },
+                        text: Text {
+                            sections: vec![TextSection {
+                                value: String::from("0/0"),
+                                style: TextStyle {
+                                    font: self.font_handle.clone().unwrap(),
+                                    font_size: self.font_size,
+                                    color: self.colors.text,
+                                },
+                            }],
+                            ..Default::default()
+                        },
                         ..Default::default()
                     },
-                    // background_color: BackgroundColor::from(),
-                    ..Default::default()
-                },));
+                    UiLabelingIndex,
+                ));
+
+                bottom_ui_panel.spawn((
+                    Name::new("current_file_name"),
+                    TextBundle {
+                        style: Style {
+                            min_height: Val::Px(20.0),
+                            min_width: Val::Px(100.0),
+                            ..default()
+                        },
+                        text: Text {
+                            sections: vec![TextSection {
+                                value: String::from(""),
+                                style: TextStyle {
+                                    font: self.font_handle.clone().unwrap(),
+                                    font_size: self.font_size,
+                                    color: self.colors.text,
+                                },
+                            }],
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    },
+                    CurrentFileNameLabel,
+                ));
             })
             .id();
 
@@ -155,39 +249,49 @@ impl Ui {
 
         ui_eid
     }
+
+    pub fn create_bounding_box_entry(
+        &self,
+        text: &str,
+        class_image: Handle<Image>,
+    ) -> VStackContainerItem {
+        VStackContainerItem {
+            text: text.to_string(),
+            image: Some(class_image),
+            text_color: self.colors.text,
+            border_color: self.colors.outer_border,
+            ..Default::default()
+        }
+    }
+
+    pub fn create_image_from_color(&self, color: Color) -> Image {
+        let color_data = color_to_float_array(color);
+        let pixel_data = color_data
+            .into_iter()
+            .flat_map(|channel| channel.to_ne_bytes())
+            .collect::<Vec<_>>();
+
+        // println!("Pixel data: {:#?}", pixel_data);
+
+        Image::new_fill(
+            Extent3d {
+                width: 4,
+                height: 4,
+                depth_or_array_layers: 1,
+            },
+            TextureDimension::D2,
+            &pixel_data,
+            TextureFormat::Rgba32Float,
+            RenderAssetUsages::RENDER_WORLD,
+        )
+    }
 }
 
 fn color_to_float_array(color: Color) -> [f32; 4] {
-    let r = (color.to_linear().red) as f32;
-    let g = (color.to_linear().green) as f32;
-    let b = (color.to_linear().blue) as f32;
-    let a = (color.to_linear().alpha) as f32;
+    let r = color.to_linear().red;
+    let g = color.to_linear().green;
+    let b = color.to_linear().blue;
+    let a = color.to_linear().alpha;
 
     [r, g, b, a]
-}
-
-pub fn create_image_from_color(images: &mut ResMut<Assets<Image>>, color: Color) -> Handle<Image> {
-    let color_data = color_to_float_array(color);
-    let pixel_data = color_data
-        .into_iter()
-        .flat_map(|channel| channel.to_ne_bytes())
-        .collect::<Vec<_>>();
-
-    // println!("Pixel data: {:#?}", pixel_data);
-
-    let image = Image::new_fill(
-        Extent3d {
-            width: 4,
-            height: 4,
-            depth_or_array_layers: 1,
-        },
-        TextureDimension::D2,
-        &pixel_data,
-        TextureFormat::Rgba32Float,
-        RenderAssetUsages::RENDER_WORLD,
-    );
-
-    let texture_handle = images.add(image);
-
-    texture_handle
 }

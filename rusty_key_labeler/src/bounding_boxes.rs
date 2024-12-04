@@ -12,7 +12,7 @@ use bevy_vector_shapes::{
 };
 use hashbrown::HashMap;
 use serde::{Deserialize, Serialize};
-use yolo_io::{YoloEntry, YoloFile};
+use yolo_io::YoloEntry;
 
 use crate::{
     settings::MAIN_LAYER,

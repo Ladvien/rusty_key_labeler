@@ -8,16 +8,16 @@ mod utils;
 
 use bevy::prelude::*;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
-use bevy_lunex::{prelude::MainUi, UiDebugPlugin, UiDefaultPlugins};
+// use bevy_inspector_egui::quick::WorldInspectorPlugin;
+use bevy_lunex::UiDefaultPlugins;
 use bevy_ui_views::BevyUiViewsPlugin;
 use bevy_vector_shapes::prelude::*;
 
 use bounding_boxes::BoundingBoxPainter;
 use components::*;
 use resources::*;
-use settings::UiColors;
 use systems::*;
-use ui::Ui;
+use ui::{ui_setup, update_current_file_name_label, update_labeling_index, Ui};
 use yolo_io::YoloProject;
 
 fn main() {
@@ -54,13 +54,19 @@ fn main() {
         ui_eid: None,
     };
 
-    let ui = Ui::new(&config.settings.ui_panel.colors);
+    // let font = "RobotoMono-Regular.ttf";
+    // let font_size = 16.0;
+    let ui = Ui::new(
+        &config.settings.ui_panel.colors,
+        config.settings.ui_panel.font_size,
+        &config.settings.ui_panel.font_path,
+    );
 
     App::new()
         .init_resource::<Assets<ColorMaterial>>()
         .add_plugins((
             DefaultPlugins.set(ImagePlugin::default_nearest()),
-            // WorldInspectorPlugin::new(),
+            WorldInspectorPlugin::new(),
             Shape2dPlugin::default(),
             UiDefaultPlugins,
             BevyUiViewsPlugin,
@@ -71,21 +77,17 @@ fn main() {
         .insert_resource(project_resource)
         .insert_resource(app_data)
         .insert_resource(ui)
-        .add_systems(
-            Startup,
-            (
-                setup,
-                // setup_ui
-            ),
-        )
+        .add_systems(Startup, (setup, ui_setup))
         .add_systems(
             Update,
             (
-                zoom_system,
+                image_view_system,
                 translate_image_system,
                 next_and_previous_system,
                 paint_bounding_boxes_system,
-                on_image_loaded_system,
+                load_image_system,
+                update_labeling_index,
+                update_current_file_name_label,
             ),
         )
         .run();
