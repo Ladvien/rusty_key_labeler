@@ -1,3 +1,8 @@
+use std::process::id;
+
+use bevy::render::camera::CameraRenderGraph;
+use bevy::render::view::Layer;
+use bevy::{color::palettes::css::*, prelude::*};
 use bevy::{
     prelude::*,
     render::{
@@ -5,6 +10,7 @@ use bevy::{
         render_resource::{Extent3d, TextureDimension, TextureFormat},
     },
 };
+use bevy_inspector_egui::egui::Style;
 use bevy_ui_views::{VStack, VStackContainerItem};
 
 use crate::{
@@ -21,7 +27,8 @@ pub struct UiCamera;
 #[derive(Debug, Clone, Component)]
 pub struct UILeftPanel;
 
-#[derive(Debug, Clone, Component)]
+#[derive(Debug, Clone, Component, Default)]
+#[require(Name, Node, Transform, BorderColor, BackgroundColor)]
 pub struct UIBottomPanel;
 
 #[derive(Debug, Clone, Component)]
@@ -62,15 +69,13 @@ pub fn ui_setup(
 
     commands.spawn((
         Name::new("ui_camera"),
-        Camera2dBundle {
-            camera: Camera {
-                // Render the UI on top of everything else.
-                order: 1,
-                ..default()
-            },
-            transform: Transform::from_xyz(0., 0., 10.).looking_at(Vec3::ZERO, Vec3::Y),
+        Camera2d::default(),
+        Camera {
+            // Render the UI on top of everything else.
+            order: 1,
             ..default()
         },
+        Transform::from_xyz(0., 0., 10.).looking_at(Vec3::ZERO, Vec3::Y),
         UI_LAYER,
         UiCamera,
     ));
@@ -88,7 +93,7 @@ pub fn update_labeling_index(
 ) {
     for (update_eid, update) in update_query.iter() {
         for mut text in query.iter_mut() {
-            text.sections[0].value = update.0.clone();
+            text.0 = update.0.clone();
             commands.entity(update_eid).despawn();
         }
     }
@@ -101,7 +106,7 @@ pub fn update_current_file_name_label(
 ) {
     for (update_eid, update) in update_query.iter() {
         for mut text in query.iter_mut() {
-            text.sections[0].value = update.0.clone();
+            text.0 = update.0.clone();
             commands.entity(update_eid).despawn();
         }
     }
@@ -122,19 +127,16 @@ impl Ui {
         let ui_eid = commands
             .spawn((
                 Name::new("left_ui_panel"),
-                NodeBundle {
-                    style: Style {
-                        flex_direction: FlexDirection::Column,
-                        left: Val::Px(0.0),
-                        top: Val::Px(0.0),
-                        width: Val::Percent(100.0),
-                        height: Val::Percent(100.0),
-                        ..default()
-                    },
-                    transform: Transform {
-                        translation: Vec3::new(0.0, 0.0, UI_Z_INDEX),
-                        ..default()
-                    },
+                Node {
+                    flex_direction: FlexDirection::Column,
+                    left: Val::Px(0.0),
+                    top: Val::Px(0.0),
+                    width: Val::Percent(100.0),
+                    height: Val::Percent(100.0),
+                    ..Default::default()
+                },
+                Transform {
+                    translation: Vec3::new(0.0, 0.0, UI_Z_INDEX),
                     ..default()
                 },
                 UILeftPanel,
@@ -164,80 +166,57 @@ impl Ui {
             ))
             .id();
 
-        commands.entity(ui_eid).push_children(&[vstack_eid]);
+        commands.entity(ui_eid).add_children(&[vstack_eid]);
 
         let bottom_ui_eid = commands
             .spawn((
+                UIBottomPanel,
                 Name::new("bottom_ui_panel"),
-                NodeBundle {
-                    // Here is where all the styling goes for the container, duh.
-                    style: Style {
-                        width: Val::Percent(100.0),
-                        min_height: Val::Percent(10.0),
-                        border: UiRect::all(Val::Px(1.0)),
-                        padding: UiRect {
-                            left: Val::Px(PADDING),
-                            right: Val::Px(PADDING),
-                            top: Val::Px(PADDING),
-                            bottom: Val::Px(PADDING),
-                        },
-                        ..default()
+                Node {
+                    width: Val::Percent(100.0),
+                    min_height: Val::Percent(10.0),
+                    border: UiRect::all(Val::Px(1.0)),
+                    padding: UiRect {
+                        left: Val::Px(PADDING),
+                        right: Val::Px(PADDING),
+                        top: Val::Px(PADDING),
+                        bottom: Val::Px(PADDING),
                     },
-                    border_color: self.colors.outer_border.into(),
-                    transform: Transform {
-                        translation: Vec3::new(0.0, 0.0, UI_Z_INDEX),
-                        ..default()
-                    },
-                    background_color: BackgroundColor(self.colors.background),
                     ..default()
                 },
-                UIBottomPanel,
+                BorderColor(self.colors.outer_border),
+                BackgroundColor(self.colors.background),
+                Transform {
+                    translation: Vec3::new(0.0, 0.0, UI_Z_INDEX),
+                    ..default()
+                },
                 UI_LAYER,
             ))
             .with_children(|bottom_ui_panel| {
                 bottom_ui_panel.spawn((
                     Name::new("labeling_index"),
-                    TextBundle {
-                        style: Style {
-                            min_height: Val::Px(20.0),
-                            min_width: Val::Px(100.0),
-                            ..default()
-                        },
-                        text: Text {
-                            sections: vec![TextSection {
-                                value: String::from("0/0"),
-                                style: TextStyle {
-                                    font: self.font_handle.clone().unwrap(),
-                                    font_size: self.font_size,
-                                    color: self.colors.text,
-                                },
-                            }],
-                            ..Default::default()
-                        },
+                    Text::from("0/0"),
+                    TextFont {
+                        font: self.font_handle.clone().unwrap(),
+                        font_size: self.font_size,
                         ..Default::default()
                     },
+                    TextColor::from(self.colors.text),
                     UiLabelingIndex,
                 ));
 
                 bottom_ui_panel.spawn((
                     Name::new("current_file_name"),
-                    TextBundle {
-                        style: Style {
-                            min_height: Val::Px(20.0),
-                            min_width: Val::Px(100.0),
-                            ..default()
-                        },
-                        text: Text {
-                            sections: vec![TextSection {
-                                value: String::from(""),
-                                style: TextStyle {
-                                    font: self.font_handle.clone().unwrap(),
-                                    font_size: self.font_size,
-                                    color: self.colors.text,
-                                },
-                            }],
-                            ..Default::default()
-                        },
+                    Text::from(""),
+                    TextFont {
+                        font: self.font_handle.clone().unwrap(),
+                        font_size: self.font_size,
+                        ..Default::default()
+                    },
+                    TextColor::from(self.colors.text),
+                    Node {
+                        min_height: Val::Px(20.0),
+                        min_width: Val::Px(100.0),
                         ..Default::default()
                     },
                     CurrentFileNameLabel,
@@ -245,7 +224,7 @@ impl Ui {
             })
             .id();
 
-        commands.entity(ui_eid).push_children(&[bottom_ui_eid]);
+        commands.entity(ui_eid).add_children(&[bottom_ui_eid]);
 
         ui_eid
     }

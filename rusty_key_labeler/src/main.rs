@@ -8,11 +8,9 @@ mod utils;
 
 use bevy::prelude::*;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
-// use bevy_inspector_egui::quick::WorldInspectorPlugin;
-use bevy_lunex::UiDefaultPlugins;
 use bevy_ui_views::BevyUiViewsPlugin;
-use bevy_vector_shapes::prelude::*;
 
+use bevy_vector_shapes::Shape2dPlugin;
 use bounding_boxes::BoundingBoxPainter;
 use components::*;
 use resources::*;
@@ -66,9 +64,9 @@ fn main() {
         .init_resource::<Assets<ColorMaterial>>()
         .add_plugins((
             DefaultPlugins.set(ImagePlugin::default_nearest()),
-            WorldInspectorPlugin::new(),
+            // WorldInspectorPlugin::new(),
             Shape2dPlugin::default(),
-            UiDefaultPlugins,
+            // UiDefaultPlugins,
             BevyUiViewsPlugin,
             // UiDebugPlugin::<MainUi>::new(),
         ))

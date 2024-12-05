@@ -29,11 +29,11 @@ pub fn setup(
 
     commands.spawn((
         Name::new("selected_image"),
-        SpriteBundle {
-            texture: image_handle.clone(),
-            transform: Transform::from_translation(Vec3::new(0., 0., 0.)),
+        Sprite {
+            image: image_handle,
             ..Default::default()
         },
+        Transform::from_translation(Vec3::new(0., 0., 0.)),
         ImageToLoad {
             path: first_image_path,
             yolo_file: selected_pair.label_file.unwrap(),
@@ -121,11 +121,11 @@ pub fn next_and_previous_system(
 
     commands.spawn((
         Name::new("selected_image"),
-        SpriteBundle {
-            texture: asset_server.load::<Image>(next_image.clone()),
-            transform: Transform::from_translation(Vec3::new(0., 0., 0.)),
+        Sprite {
+            image: asset_server.load::<Image>(next_image.clone()),
             ..Default::default()
         },
+        Transform::from_translation(Vec3::new(0., 0., 0.)),
         ImageToLoad {
             path: next_image,
             yolo_file: valid_pairs[app_data.index as usize]
@@ -168,44 +168,47 @@ pub fn load_image_system(
 
         match asset_server.get_load_state(&image_handle) {
             Some(state) => {
-                if state == LoadState::Loaded {
-                    // Remove ImageToLoad component and add SelectedImage component
-                    commands.entity(entity).remove::<ImageToLoad>();
-                    commands.entity(entity).insert(SelectedImage);
+                match state {
+                    LoadState::Loaded => {
+                        // Remove ImageToLoad component and add SelectedImage component
+                        commands.entity(entity).remove::<ImageToLoad>();
+                        commands.entity(entity).insert(SelectedImage);
 
-                    let file_stem = Path::new(&image_to_load.path)
-                        .file_stem()
-                        .unwrap()
-                        .to_string_lossy()
-                        .into_owned();
+                        let file_stem = Path::new(&image_to_load.path)
+                            .file_stem()
+                            .unwrap()
+                            .to_string_lossy()
+                            .into_owned();
 
-                    let image = images.get(&image_handle).unwrap();
+                        let image = images.get(&image_handle).unwrap();
 
-                    let image_data = ImageData {
-                        path: image_to_load.path.clone(),
-                        stem: file_stem.clone(),
-                        image: image_handle,
-                        width: image.width() as f32,
-                        height: image.height() as f32,
-                        yolo_file: image_to_load.yolo_file.clone(),
-                        index: app_data.index,
-                        total_images: app_data.total_images,
-                    };
+                        let image_data = ImageData {
+                            path: image_to_load.path.clone(),
+                            stem: file_stem.clone(),
+                            image: image_handle,
+                            width: image.width() as f32,
+                            height: image.height() as f32,
+                            yolo_file: image_to_load.yolo_file.clone(),
+                            index: app_data.index,
+                            total_images: app_data.total_images,
+                        };
 
-                    commands.spawn(CurrentFileNameLabelUpdateNeeded(file_stem));
+                        commands.spawn(CurrentFileNameLabelUpdateNeeded(file_stem));
 
-                    // TODO: If we pass in the index and total_images, and number of
-                    //      non-empty label files, we can use the same system
-                    //      for progress bar.
-                    commands.spawn(UiLabelingIndexUpdateNeeded(format!(
-                        "{}/{}",
-                        app_data.index + 1,
-                        app_data.total_images + 1
-                    )));
+                        // TODO: If we pass in the index and total_images, and number of
+                        //      non-empty label files, we can use the same system
+                        //      for progress bar.
+                        commands.spawn(UiLabelingIndexUpdateNeeded(format!(
+                            "{}/{}",
+                            app_data.index + 1,
+                            app_data.total_images + 1
+                        )));
 
-                    commands
-                        .entity(entity)
-                        .insert((image_data, UiLabelDataChanged));
+                        commands
+                            .entity(entity)
+                            .insert((image_data, UiLabelDataChanged));
+                    }
+                    _ => println!("Image not loaded"),
                 }
             }
             None => {
@@ -269,7 +272,7 @@ pub fn paint_bounding_boxes_system(
             }
 
             if !children.is_empty() {
-                commands.entity(image_eid).push_children(&children);
+                commands.entity(image_eid).add_children(&children);
             }
         }
     }
@@ -298,49 +301,49 @@ pub fn image_view_system(
     let window = window.iter().next().unwrap(); // TODO: handle
 
     for (entity, image_data) in just_selected.iter() {
-        let mut left_panel_width: f32 = 0.0;
-        let mut bottom_panel_height: f32 = 0.0;
+        // let mut left_panel_width: f32 = 0.0;
+        // let mut bottom_panel_height: f32 = 0.0;
 
-        let left_panel_query = transforms.p1();
-        match left_panel_query.get_single() {
-            Ok(value) => left_panel_width = value.translation.x,
-            Err(_) => {
-                error!("Left panel not found");
-                return;
-            }
-        };
+        // let left_panel_query = transforms.p1();
+        // match left_panel_query.get_single() {
+        //     Ok(value) => left_panel_width = value.translation.x,
+        //     Err(_) => {
+        //         error!("Left panel not found");
+        //         return;
+        //     }
+        // };
 
-        let bottom_panel_query = transforms.p2();
-        match bottom_panel_query.get_single() {
-            Ok(value) => bottom_panel_height = value.translation.y,
-            Err(_) => {
-                error!("Bottom panel not found");
-                return;
-            }
-        };
+        // let bottom_panel_query = transforms.p2();
+        // match bottom_panel_query.get_single() {
+        //     Ok(value) => bottom_panel_height = value.translation.y,
+        //     Err(_) => {
+        //         error!("Bottom panel not found");
+        //         return;
+        //     }
+        // };
 
-        println!("Window width: {}", window.width());
-        println!("Window height: {}", window.height());
-        println!("Left panel width: {}", left_panel_width);
-        println!("Bottom panel height: {}", bottom_panel_height);
+        // println!("Window width: {}", window.width());
+        // println!("Window height: {}", window.height());
+        // println!("Left panel width: {}", left_panel_width);
+        // println!("Bottom panel height: {}", bottom_panel_height);
 
-        commands.spawn((
-            Name::new("viewport"),
-            NodeBundle {
-                style: Style {
-                    left: Val::Px(0.0),
-                    top: Val::Px(0.0),
-                    border: UiRect::all(Val::Px(4.0)),
-                    width: Val::Px(window.width()),
-                    height: Val::Px(window.height() - bottom_panel_height / 2.),
-                    ..Default::default()
-                },
-                border_color: BorderColor::from(Color::srgba(0.1, 0.1, 1.0, 1.0)),
-                background_color: BackgroundColor::from(Color::srgba(1.0, 0.1, 0.0, 1.0)),
-                ..Default::default()
-            },
-            UI_LAYER,
-        ));
+        // commands.spawn((
+        //     Name::new("viewport"),
+        //     NodeBundle {
+        //         style: Style {
+        //             left: Val::Px(0.0),
+        //             top: Val::Px(0.0),
+        //             border: UiRect::all(Val::Px(4.0)),
+        //             width: Val::Px(window.width()),
+        //             height: Val::Px(window.height() - bottom_panel_height / 2.),
+        //             ..Default::default()
+        //         },
+        //         border_color: BorderColor::from(Color::srgba(0.1, 0.1, 1.0, 1.0)),
+        //         background_color: BackgroundColor::from(Color::srgba(1.0, 0.1, 0.0, 1.0)),
+        //         ..Default::default()
+        //     },
+        //     UI_LAYER,
+        // ));
     }
 }
 
@@ -353,16 +356,16 @@ pub fn translate_image_system(
     for mut transform in query.iter_mut() {
         let mut translation = transform.translation;
         if keyboard_input.pressed(config.settings.key_map.pan_up) {
-            translation.y += config.settings.pan_factor.y * time.delta_seconds();
+            translation.y += config.settings.pan_factor.y * time.delta_secs();
         }
         if keyboard_input.pressed(config.settings.key_map.pan_down) {
-            translation.y -= config.settings.pan_factor.y * time.delta_seconds();
+            translation.y -= config.settings.pan_factor.y * time.delta_secs();
         }
         if keyboard_input.pressed(config.settings.key_map.pan_left) {
-            translation.x -= config.settings.pan_factor.x * time.delta_seconds();
+            translation.x -= config.settings.pan_factor.x * time.delta_secs();
         }
         if keyboard_input.pressed(config.settings.key_map.pan_right) {
-            translation.x += config.settings.pan_factor.x * time.delta_seconds();
+            translation.x += config.settings.pan_factor.x * time.delta_secs();
         }
         transform.translation = translation;
     }
