@@ -128,7 +128,7 @@ impl BoundingBoxPainter {
 
         let class_color = self.bounding_box_settings.class_color_map[entry.class as usize];
 
-        let bounding_box = (
+        (
             Name::new(format!("bounding_box_{}", index)),
             ShapeBundle::rect(
                 &ShapeConfig {
@@ -143,10 +143,7 @@ impl BoundingBoxPainter {
             ),
             BoundingBoxMarker,
             MAIN_LAYER,
-        );
-
-        // children
-        bounding_box
+        )
     }
 
     fn get_bounding_box_transform(x_center: f32, y_center: f32, image_size: Vec2) -> Transform {

@@ -65,9 +65,9 @@ fn main() {
         .add_plugins((
             DefaultPlugins.set(ImagePlugin::default_nearest()),
             // WorldInspectorPlugin::new(),
-            Shape2dPlugin::default(),
+            // Shape2dPlugin::default(),
             // UiDefaultPlugins,
-            BevyUiViewsPlugin,
+            // BevyUiViewsPlugin,
             // UiDebugPlugin::<MainUi>::new(),
         ))
         .insert_resource(config)
@@ -75,18 +75,24 @@ fn main() {
         .insert_resource(project_resource)
         .insert_resource(app_data)
         .insert_resource(ui)
-        .add_systems(Startup, (setup, ui_setup))
+        .add_systems(Startup, (setup, ui_setup, preload_images_system))
+        // .add_systems(FixedUpdate, ())
+        // .add_systems(
+        //     PreUpdate,
+        //     (update_labeling_index, update_current_file_name_label),
+        // )
         .add_systems(
             Update,
             (
-                image_view_system,
-                translate_image_system,
+                // load_image_system,
                 next_and_previous_system,
-                paint_bounding_boxes_system,
-                load_image_system,
-                update_labeling_index,
-                update_current_file_name_label,
-            ),
+                // paint_bounding_boxes_system,
+                // translate_image_system,
+                // image_view_system,
+                // update_labeling_index,
+                // update_current_file_name_label,
+            )
+                .chain(),
         )
         .run();
 }

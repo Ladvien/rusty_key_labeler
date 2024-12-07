@@ -38,7 +38,7 @@ settings:
       - (0, 255, 0, 255)
       - (0, 0, 255, 255)
 
-  delay_between_images: 0.1
+  delay_between_images: 0.001
 
   ui_panel:
     font: "RobotoMono-Regular.ttf"
