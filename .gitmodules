@@ -1,3 +1,7 @@
 [submodule "yolo_io"]
 	path = yolo_io
 	url = git@github.com:Ladvien/yolo_io.git
+
+[submodule "bevy_ui_views"]
+	path = bevy_ui_views
+	url = git@github.com:Ladvien/bevy_ui_views.git

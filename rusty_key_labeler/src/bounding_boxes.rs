@@ -107,12 +107,7 @@ impl BoundingBoxPainter {
         index: usize,
         entry: &YoloEntry,
         image_size: Vec2,
-    ) -> (
-        Name,
-        ShapeBundle<RectangleComponent>,
-        BoundingBoxMarker,
-        RenderLayers,
-    ) {
+    ) -> (Name, ShapeBundle<RectangleComponent>, RenderLayers) {
         let (scaled_x_center, scaled_y_center, scaled_width, scaled_height) = scale_dimensions(
             entry.x_center,
             entry.y_center,
@@ -141,7 +136,6 @@ impl BoundingBoxPainter {
                 },
                 size,
             ),
-            BoundingBoxMarker,
             MAIN_LAYER,
         )
     }

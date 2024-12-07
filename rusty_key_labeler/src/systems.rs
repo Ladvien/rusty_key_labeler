@@ -1,4 +1,4 @@
-use bevy::{asset::LoadState, prelude::*};
+use bevy::{asset::LoadState, image, prelude::*};
 use bevy_ui_views::VStackUpdatedItems;
 use std::path::Path;
 
@@ -10,7 +10,7 @@ use crate::{
         CurrentFileNameLabelUpdateNeeded, UIBottomPanel, UILeftPanel, Ui, UiLabelDataChanged,
         UiLabelingIndexUpdateNeeded,
     },
-    Config, DebounceTimer, ImageData, ImageToLoad, MainCamera, SelectedImage,
+    Config, DebounceTimer, ImageToLoad, MainCamera, SelectedImage,
 };
 
 pub fn setup(
@@ -34,10 +34,7 @@ pub fn setup(
             ..Default::default()
         },
         Transform::from_translation(Vec3::new(0., 0., 0.)),
-        ImageToLoad {
-            path: first_image_path,
-            yolo_file: selected_pair.label_file.unwrap(),
-        },
+        SelectedImage,
         MAIN_LAYER,
     ));
 
@@ -61,29 +58,29 @@ pub fn preload_images_system(
     asset_server: Res<AssetServer>,
     project_resource: Res<YoloProjectResource>,
 ) {
-    // let valid_pairs = project_resource.0.get_valid_pairs();
+    let valid_pairs = project_resource.0.get_valid_pairs();
 
-    // for pair in valid_pairs.iter() {
-    //     if let Some(image_path) = pair.image_path.clone() {
-    //         let image_path = image_path.as_path().to_string_lossy().into_owned();
-    //         let image_handle = asset_server.load::<Image>(image_path.clone());
-    //         // commands.spawn((
-    //         //     Name::new("selected_image"),
-    //         //     Sprite {
-    //         //         image: asset_server.load::<Image>(image_path.clone()),
-    //         //         ..Default::default()
-    //         //     },
-    //         //     Transform::from_translation(Vec3::new(0., 0., 0.)),
-    //         //     ImageToLoad {
-    //         //         path: image_path.clone(),
-    //         //         yolo_file: pair.label_file.clone().unwrap(),
-    //         //     },
-    //         //     MAIN_LAYER,
-    //         // ));
+    for pair in valid_pairs.iter() {
+        if let Some(image_path) = pair.image_path.clone() {
+            let image_path = image_path.as_path().to_string_lossy().into_owned();
+            let image_handle = asset_server.load::<Image>(image_path.clone());
+            // commands.spawn((
+            //     Name::new("selected_image"),
+            //     Sprite {
+            //         image: asset_server.load::<Image>(image_path.clone()),
+            //         ..Default::default()
+            //     },
+            //     Transform::from_translation(Vec3::new(0., 0., 0.)),
+            //     ImageToLoad {
+            //         path: image_path.clone(),
+            //         yolo_file: pair.label_file.clone().unwrap(),
+            //     },
+            //     MAIN_LAYER,
+            // ));
 
-    //         info!("Preloaded image: {}", image_path);
-    //     }
-    // }
+            info!("Preloaded image: {}", image_path);
+        }
+    }
 }
 
 #[warn(clippy::too_many_arguments)]
@@ -94,29 +91,23 @@ pub fn next_and_previous_system(
     mut app_data: ResMut<AppData>,
     project_resource: Res<YoloProjectResource>,
     config: Res<Config>,
-    query_image_to_load: Query<Entity, With<ImageToLoad>>,
     query_selected_images: Query<Entity, With<SelectedImage>>,
     time: Res<Time>,
     mut debounce_timer: Query<(Entity, &mut DebounceTimer)>,
 ) {
-    // for (entity, mut timer) in debounce_timer.iter_mut() {
-    //     timer.timer.tick(time.delta());
-    //     if !timer.timer.finished() {
-    //         return;
-    //     }
-    //     commands.entity(entity).despawn();
-    // }
+    for (entity, mut timer) in debounce_timer.iter_mut() {
+        timer.timer.tick(time.delta());
+        if !timer.timer.finished() {
+            return;
+        }
+        commands.entity(entity).despawn_recursive();
+    }
 
     if keyboard_input.pressed(KeyCode::ArrowRight) {
         app_data.index += 1;
     } else if keyboard_input.pressed(KeyCode::ArrowLeft) {
         app_data.index -= 1;
     } else {
-        return;
-    }
-
-    // This query ensures the image is loaded before we can move to the next one.
-    if query_image_to_load.iter().count() > 0 {
         return;
     }
 
@@ -130,12 +121,7 @@ pub fn next_and_previous_system(
         app_data.index = 0;
     }
 
-    // Despawn selected image
-    // for entity in query_selected_images.iter() {
-    //     commands.entity(entity).despawn_recursive();
-    // }
-
-    // TODO: Clean up unwraps.
+    // Load next image
     let next_image_path = match valid_pairs[app_data.index as usize].clone().image_path {
         Some(image) => image,
         _ => {
@@ -145,12 +131,20 @@ pub fn next_and_previous_system(
     };
     let next_image = next_image_path.as_path().to_string_lossy().into_owned();
 
+    // Remove old selected image.
+    for entity in query_selected_images.iter() {
+        commands.entity(entity).despawn_recursive();
+    }
+
+    // Add image to the scene
+    let next_image_handle = asset_server.load::<Image>(next_image.clone());
     commands.spawn((
         Name::new("selected_image"),
         Sprite {
-            image: asset_server.load::<Image>(next_image.clone()),
+            image: next_image_handle,
             ..Default::default()
         },
+        SelectedImage,
         Transform::from_translation(Vec3::new(0., 0., 0.)),
         MAIN_LAYER,
     ));
@@ -160,109 +154,28 @@ pub fn next_and_previous_system(
     commands.spawn(UiLabelingIndexUpdateNeeded(index_label));
 
     // Debounce timer
-    // commands.spawn((
-    //     Name::new("debounce_timer"),
-    //     DebounceTimer {
-    //         timer: Timer::from_seconds(config.settings.delay_between_images, TimerMode::Once),
-    //     },
-    // ));
-
-    // Remove ImageToLoad component
-    for entity in query_image_to_load.iter() {
-        commands.entity(entity).despawn();
-    }
-
-    // keyboard_input.clear();
+    commands.spawn((
+        Name::new("debounce_timer"),
+        DebounceTimer {
+            timer: Timer::from_seconds(config.settings.delay_between_images, TimerMode::Once),
+        },
+    ));
 }
-
-// pub fn load_image_system(
-//     mut commands: Commands,
-//     asset_server: Res<AssetServer>,
-//     images: Res<Assets<Image>>,
-//     query: Query<(Entity, &ImageToLoad), With<ImageToLoad>>,
-//     app_data: Res<AppData>,
-// ) {
-//     if let Some((entity, image_to_load)) = query.iter().next() {
-//         //
-//         //
-
-//         let image_handle: Handle<Image> = asset_server.load(image_to_load.path.clone());
-
-//         match asset_server.get_load_state(&image_handle) {
-//             Some(state) => {
-//                 info!("Image load state: {:?}", state);
-//                 match state {
-//                     LoadState::Loaded => {
-//                         // Remove ImageToLoad component and add SelectedImage component
-//                         commands.entity(entity).remove::<ImageToLoad>();
-//                         commands.entity(entity).insert(SelectedImage);
-
-//                         let file_stem = match Path::new(&image_to_load.path).file_stem() {
-//                             Some(file_stem) => file_stem.to_string_lossy().into_owned(),
-//                             _ => {
-//                                 error!("File stem not found");
-//                                 return;
-//                             }
-//                         };
-
-//                         let image = match images.get(&image_handle) {
-//                             Some(image) => image,
-//                             None => {
-//                                 error!("Image not found");
-//                                 return;
-//                             }
-//                         };
-
-//                         let image_data = ImageData {
-//                             path: image_to_load.path.clone(),
-//                             stem: file_stem.clone(),
-//                             image: image_handle,
-//                             width: image.width() as f32,
-//                             height: image.height() as f32,
-//                             yolo_file: image_to_load.yolo_file.clone(),
-//                             index: app_data.index,
-//                             total_images: app_data.total_images,
-//                         };
-
-//                         commands.spawn(CurrentFileNameLabelUpdateNeeded(file_stem));
-
-//                         // TODO: If we pass in the index and total_images, and number of
-//                         //      non-empty label files, we can use the same system
-//                         //      for progress bar.
-//                         commands.spawn(UiLabelingIndexUpdateNeeded(format!(
-//                             "{}/{}",
-//                             app_data.index + 1,
-//                             app_data.total_images + 1
-//                         )));
-
-//                         commands.entity(entity).insert((image_data));
-//                     }
-//                     _ => {
-//                         info!("Image not loaded");
-//                     }
-//                 }
-//             }
-//             None => {
-//                 error!("Load state not found");
-//             }
-//         }
-//     }
-// }
 
 pub fn paint_bounding_boxes_system(
     mut commands: Commands,
     mut images: ResMut<Assets<Image>>,
-    query: Query<(Entity, &ImageData), With<SelectedImage>>,
-    old_bounding_boxes: Query<Entity, With<BoundingBoxMarker>>,
+    query: Query<(Entity, &Sprite), (With<SelectedImage>, Without<BoundingBoxMarker>)>,
     project_resource: Res<YoloProjectResource>,
     bb_painter: Res<BoundingBoxPainter>,
     app_data: Res<AppData>,
     ui: Res<Ui>,
 ) {
-    // TODO: Clean up unwraps.
-    if old_bounding_boxes.iter().count() > 0 {
+    if query.iter().count() == 0 {
         return;
     }
+
+    info!("Painting bounding boxes");
 
     match project_resource.0.pair_at_index(app_data.index) {
         Some(pair) => {
@@ -280,45 +193,56 @@ pub fn paint_bounding_boxes_system(
             let mut children = Vec::new();
             let mut ui_items = Vec::new();
 
-            for (image_eid, image_data) in query.iter() {
-                println!("Painting bounding boxes");
-                let image = match images.get(&image_data.image) {
-                    Some(image) => image,
+            for (selected_image_eid, sprite) in query.iter() {
+                info!("Selected image: {:?}", sprite.image);
+
+                match images.get_mut(&sprite.image) {
+                    Some(image) => {
+                        //
+                        commands
+                            .entity(selected_image_eid)
+                            .insert(BoundingBoxMarker);
+
+                        let image_size = Vec2::new(image.width() as f32, image.height() as f32);
+
+                        for (index, entry) in yolo_file.entries.iter().enumerate() {
+                            //
+                            info!("Adding bounding box: {}", index);
+                            let bounding_box = bb_painter.get_box(index, entry, image_size);
+                            let child_id = commands.spawn(bounding_box).id();
+                            children.push(child_id);
+
+                            let color = bb_painter.get_color(entry.class);
+
+                            // TODO: I should preload all the color swatches, giving them a path.
+                            let image = ui.create_image_from_color(color);
+                            let image_handle = images.add(image);
+
+                            let item = ui.create_bounding_box_entry(
+                                &project_resource.0.config.export.class_map[&entry.class],
+                                image_handle,
+                            );
+
+                            ui_items.push(item);
+                        }
+
+                        // if let Some(ui_eid) = app_data.ui_eid {
+                        //     commands.spawn(VStackUpdatedItems {
+                        //         items: ui_items.clone(),
+                        //         vstack_eid: ui_eid,
+                        //     });
+                        // }
+
+                        if !children.is_empty() {
+                            info!("Adding children to selected image");
+                            commands.entity(selected_image_eid).add_children(&children);
+                        }
+                    }
                     None => {
                         error!("Image not found");
                         return;
                     }
                 };
-                let image_size = Vec2::new(image.width() as f32, image.height() as f32);
-
-                for (index, entry) in yolo_file.entries.iter().enumerate() {
-                    let bounding_box = bb_painter.get_box(index, entry, image_size);
-                    let child_id = commands.spawn(bounding_box).id();
-                    children.push(child_id);
-
-                    let color = bb_painter.get_color(entry.class);
-                    // TODO: I should preload all the color swatches, giving them a path.
-                    let image = ui.create_image_from_color(color);
-                    let image_handle = images.add(image);
-
-                    let item = ui.create_bounding_box_entry(
-                        &project_resource.0.config.export.class_map[&entry.class],
-                        image_handle,
-                    );
-
-                    ui_items.push(item);
-                }
-
-                if let Some(ui_eid) = app_data.ui_eid {
-                    commands.spawn(VStackUpdatedItems {
-                        items: ui_items.clone(),
-                        vstack_eid: ui_eid,
-                    });
-                }
-
-                if !children.is_empty() {
-                    commands.entity(image_eid).add_children(&children);
-                }
             }
         }
     }

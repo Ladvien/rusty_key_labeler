@@ -33,3 +33,4 @@ validation.json
 report.json
 
 test_data/
+trace*.json
