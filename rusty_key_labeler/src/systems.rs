@@ -5,23 +5,23 @@ use yolo_io::ImageLabelPair;
 
 use crate::{
     bounding_boxes::{BoundingBoxMarker, BoundingBoxPainter},
-    resources::{AppData, YoloProjectResource},
+    resources::AppData,
     settings::{MAIN_LAYER, UI_LAYER},
     ui::{
         CurrentFileNameLabelUpdateNeeded, UIBottomPanel, UILeftPanel, Ui, UiLabelDataChanged,
         UiLabelingIndexUpdateNeeded,
     },
-    Config, DebounceTimer, ImageLoading, ImageReady, ImageToLoad, MainCamera, SelectedImage,
+    Config, DebounceTimer, ImageData, ImageLoading, ImageReady, ImageToLoad, MainCamera,
+    SelectedImage,
 };
 
 pub fn setup(
     mut commands: Commands,
     mut app_data: ResMut<AppData>,
-    project_resource: Res<YoloProjectResource>,
     asset_server: Res<AssetServer>,
 ) {
     app_data.index = 0;
-    let valid_pairs = project_resource.0.get_valid_pairs();
+    let valid_pairs = app_data.yolo_project.get_valid_pairs();
     let selected_pair = valid_pairs[0].clone();
 
     let first_image = selected_pair.clone().image_path.unwrap();
@@ -99,8 +99,6 @@ pub fn next_and_previous_system(
     asset_server: Res<AssetServer>,
     mut keyboard_input: ResMut<ButtonInput<KeyCode>>,
     mut app_data: ResMut<AppData>,
-    project_resource: Res<YoloProjectResource>,
-    config: Res<Config>,
     query_selected_images: Query<Entity, With<SelectedImage>>,
     images_being_loaded: Query<(Entity, &ImageLoading)>,
     time: Res<Time>,
@@ -149,7 +147,7 @@ pub fn next_and_previous_system(
         return;
     }
 
-    let valid_pairs = project_resource.0.get_valid_pairs();
+    let valid_pairs = app_data.yolo_project.get_valid_pairs();
 
     if app_data.index < 0 {
         app_data.index = valid_pairs.len() as isize - 1;
@@ -164,7 +162,7 @@ pub fn next_and_previous_system(
         asset_server,
         app_data.index,
         valid_pairs.len() as isize - 1,
-        config.settings.delay_between_images,
+        app_data.config.settings.delay_between_images,
         valid_pairs,
     );
 
@@ -173,6 +171,146 @@ pub fn next_and_previous_system(
         commands.entity(entity).despawn_recursive();
     }
 }
+
+pub fn bounding_boxes_system(
+    mut commands: Commands,
+    mut images: ResMut<Assets<Image>>,
+    query: Query<
+        (Entity, &Sprite),
+        (
+            With<SelectedImage>,
+            With<ImageReady>,
+            Without<BoundingBoxMarker>,
+        ),
+    >,
+    bb_painter: Res<BoundingBoxPainter>,
+    app_data: Res<AppData>,
+    ui: Res<Ui>,
+) {
+    if query.iter().count() == 0 {
+        return;
+    }
+
+    info!("Painting bounding boxes");
+
+    match app_data.yolo_project.pair_at_index(app_data.index) {
+        Some(pair) => {
+            if pair.label_file.is_none() {
+                info!("No label file found");
+                return;
+            }
+        }
+        None => {
+            return;
+        }
+    }
+
+    if let Some(pair) = app_data.yolo_project.pair_at_index(app_data.index) {
+        if let Some(yolo_file) = pair.label_file {
+            let mut children = Vec::new();
+            let mut ui_items = Vec::new();
+
+            for (selected_image_eid, sprite) in query.iter() {
+                info!("Selected image: {:?}", sprite.image);
+
+                match images.get_mut(&sprite.image) {
+                    Some(image) => {
+                        // TODO: Keep an eye on this.
+                        commands
+                            .entity(selected_image_eid)
+                            .try_insert(BoundingBoxMarker);
+
+                        let image_size = Vec2::new(image.width() as f32, image.height() as f32);
+
+                        for (index, entry) in yolo_file.entries.iter().enumerate() {
+                            //
+                            info!("Adding bounding box: {}", index);
+                            let bounding_box = bb_painter.get_box(index, entry, image_size);
+                            let child_id = commands.spawn(bounding_box).id();
+                            children.push(child_id);
+
+                            let color = bb_painter.get_color(entry.class);
+
+                            // TODO: I should preload all the color swatches, giving them a path.
+                            let image = ui.create_image_from_color(color);
+                            let image_handle = images.add(image);
+
+                            let item = ui.create_bounding_box_entry(
+                                &app_data.yolo_project.config.export.class_map[&entry.class],
+                                image_handle,
+                            );
+
+                            ui_items.push(item);
+                        }
+
+                        if let Some(left_panel_eid) = app_data.left_panel_eid {
+                            info!("Updating left panel");
+                            commands.spawn(VStackUpdatedItems {
+                                items: ui_items.clone(),
+                                vstack_eid: left_panel_eid,
+                            });
+                        }
+                    }
+                    None => {
+                        error!("Image not found");
+                        return;
+                    }
+                };
+                if !children.is_empty() {
+                    info!("Adding children to selected image");
+                    commands.entity(selected_image_eid).add_children(&children);
+                }
+            }
+        }
+    }
+}
+
+// // WILO: I'd like to stop changing the position of the camera
+// // and instead change the position and or scale of the image.
+pub fn image_view_system(
+    mut commands: Commands,
+    time: Res<Time>,
+    config: Res<Config>,
+    window: Query<&Window>,
+    just_selected: Query<(Entity, &ImageData), Added<SelectedImage>>,
+    mut transforms: ParamSet<(
+        Query<(Entity, &ImageData, &mut Transform), Added<SelectedImage>>,
+        Query<&Transform, With<UILeftPanel>>,
+        Query<&Transform, With<UIBottomPanel>>,
+    )>,
+) {
+    // 1. Ensure the image is maxed height or width according to the viewport size.
+    // 2. Center the image on first selected.
+    // 3. Allow panning and zooming.
+
+    // WILO: Re-think approach, this isn't working.
+
+    let window = window.iter().next().unwrap();
+}
+
+// pub fn translate_image_system(
+//     mut query: Query<&mut Transform, With<SelectedImage>>,
+//     keyboard_input: Res<ButtonInput<KeyCode>>,
+//     time: Res<Time>,
+//     config: Res<Config>,
+// ) {
+//     for mut transform in query.iter_mut() {
+//         let mut translation = transform.translation;
+//         if keyboard_input.pressed(config.settings.key_map.pan_up) {
+//             translation.y += config.settings.pan_factor.y * time.delta_secs();
+//         }
+//         if keyboard_input.pressed(config.settings.key_map.pan_down) {
+//             translation.y -= config.settings.pan_factor.y * time.delta_secs();
+//         }
+//         if keyboard_input.pressed(config.settings.key_map.pan_left) {
+//             translation.x -= config.settings.pan_factor.x * time.delta_secs();
+//         }
+//         if keyboard_input.pressed(config.settings.key_map.pan_right) {
+//             translation.x += config.settings.pan_factor.x * time.delta_secs();
+//         }
+//         transform.translation = translation;
+//     }
+// }
 
 pub fn start_image_load(
     commands: &mut Commands,
@@ -210,6 +348,14 @@ pub fn start_image_load(
     let index_label = format!("{}/{}", index + 1, total_images + 1);
     commands.spawn(UiLabelingIndexUpdateNeeded(index_label));
 
+    // Update current file name label
+    let current_file_name = next_image_path
+        .file_name()
+        .unwrap()
+        .to_string_lossy()
+        .into_owned();
+    commands.spawn(CurrentFileNameLabelUpdateNeeded(current_file_name));
+
     // Debounce timer
     commands.spawn((
         Name::new("debounce_timer"),
@@ -218,189 +364,3 @@ pub fn start_image_load(
         },
     ));
 }
-
-pub fn paint_bounding_boxes_system(
-    mut commands: Commands,
-    mut images: ResMut<Assets<Image>>,
-    query: Query<
-        (Entity, &Sprite),
-        (
-            With<SelectedImage>,
-            With<ImageReady>,
-            Without<BoundingBoxMarker>,
-        ),
-    >,
-    project_resource: Res<YoloProjectResource>,
-    bb_painter: Res<BoundingBoxPainter>,
-    app_data: Res<AppData>,
-    ui: Res<Ui>,
-) {
-    if query.iter().count() == 0 {
-        return;
-    }
-
-    info!("Painting bounding boxes");
-
-    match project_resource.0.pair_at_index(app_data.index) {
-        Some(pair) => {
-            if pair.label_file.is_none() {
-                info!("No label file found");
-                return;
-            }
-        }
-        None => {
-            return;
-        }
-    }
-
-    if let Some(pair) = project_resource.0.pair_at_index(app_data.index) {
-        if let Some(yolo_file) = pair.label_file {
-            let mut children = Vec::new();
-            let mut ui_items = Vec::new();
-
-            for (selected_image_eid, sprite) in query.iter() {
-                info!("Selected image: {:?}", sprite.image);
-
-                match images.get_mut(&sprite.image) {
-                    Some(image) => {
-                        // TODO: Keep an eye on this.
-                        commands
-                            .entity(selected_image_eid)
-                            .try_insert(BoundingBoxMarker);
-
-                        let image_size = Vec2::new(image.width() as f32, image.height() as f32);
-
-                        for (index, entry) in yolo_file.entries.iter().enumerate() {
-                            //
-                            info!("Adding bounding box: {}", index);
-                            let bounding_box = bb_painter.get_box(index, entry, image_size);
-                            let child_id = commands.spawn(bounding_box).id();
-                            children.push(child_id);
-
-                            let color = bb_painter.get_color(entry.class);
-
-                            // TODO: I should preload all the color swatches, giving them a path.
-                            let image = ui.create_image_from_color(color);
-                            let image_handle = images.add(image);
-
-                            let item = ui.create_bounding_box_entry(
-                                &project_resource.0.config.export.class_map[&entry.class],
-                                image_handle,
-                            );
-
-                            ui_items.push(item);
-                        }
-
-                        if let Some(ui_eid) = app_data.ui_eid {
-                            commands.spawn(VStackUpdatedItems {
-                                items: ui_items.clone(),
-                                vstack_eid: ui_eid,
-                            });
-                        }
-                    }
-                    None => {
-                        error!("Image not found");
-                        return;
-                    }
-                };
-                if !children.is_empty() {
-                    info!("Adding children to selected image");
-                    commands.entity(selected_image_eid).add_children(&children);
-                }
-            }
-        }
-    }
-}
-
-// // WILO: I'd like to stop changing the position of the camera
-// // and instead change the position and or scale of the image.
-// pub fn image_view_system(
-//     mut commands: Commands,
-//     time: Res<Time>,
-//     config: Res<Config>,
-//     window: Query<&Window>,
-//     just_selected: Query<(Entity, &ImageData), Added<SelectedImage>>,
-//     mut transforms: ParamSet<(
-//         Query<(Entity, &ImageData, &mut Transform), Added<SelectedImage>>,
-//         Query<&Transform, With<UILeftPanel>>,
-//         Query<&Transform, With<UIBottomPanel>>,
-//     )>,
-// ) {
-//     // 1. Ensure the image is maxed height or width according to the viewport size.
-//     // 2. Center the image on first selected.
-//     // 3. Allow panning and zooming.
-
-//     // WILO: Re-think approach, this isn't working.
-
-//     let window = window.iter().next().unwrap(); // TODO: handle
-
-//     // for (entity, image_data) in just_selected.iter() {
-//     // let mut left_panel_width: f32 = 0.0;
-//     // let mut bottom_panel_height: f32 = 0.0;
-
-//     // let left_panel_query = transforms.p1();
-//     // match left_panel_query.get_single() {
-//     //     Ok(value) => left_panel_width = value.translation.x,
-//     //     Err(_) => {
-//     //         error!("Left panel not found");
-//     //         return;
-//     //     }
-//     // };
-
-//     // let bottom_panel_query = transforms.p2();
-//     // match bottom_panel_query.get_single() {
-//     //     Ok(value) => bottom_panel_height = value.translation.y,
-//     //     Err(_) => {
-//     //         error!("Bottom panel not found");
-//     //         return;
-//     //     }
-//     // };
-
-//     // println!("Window width: {}", window.width());
-//     // println!("Window height: {}", window.height());
-//     // println!("Left panel width: {}", left_panel_width);
-//     // println!("Bottom panel height: {}", bottom_panel_height);
-
-//     // commands.spawn((
-//     //     Name::new("viewport"),
-//     //     NodeBundle {
-//     //         style: Style {
-//     //             left: Val::Px(0.0),
-//     //             top: Val::Px(0.0),
-//     //             border: UiRect::all(Val::Px(4.0)),
-//     //             width: Val::Px(window.width()),
-//     //             height: Val::Px(window.height() - bottom_panel_height / 2.),
-//     //             ..Default::default()
-//     //         },
-//     //         border_color: BorderColor::from(Color::srgba(0.1, 0.1, 1.0, 1.0)),
-//     //         background_color: BackgroundColor::from(Color::srgba(1.0, 0.1, 0.0, 1.0)),
-//     //         ..Default::default()
-//     //     },
-//     //     UI_LAYER,
-//     // ));
-//     // }
-// }
-
-// pub fn translate_image_system(
-//     mut query: Query<&mut Transform, With<SelectedImage>>,
-//     keyboard_input: Res<ButtonInput<KeyCode>>,
-//     time: Res<Time>,
-//     config: Res<Config>,
-// ) {
-//     for mut transform in query.iter_mut() {
-//         let mut translation = transform.translation;
-//         if keyboard_input.pressed(config.settings.key_map.pan_up) {
-//             translation.y += config.settings.pan_factor.y * time.delta_secs();
-//         }
-//         if keyboard_input.pressed(config.settings.key_map.pan_down) {
-//             translation.y -= config.settings.pan_factor.y * time.delta_secs();
-//         }
-//         if keyboard_input.pressed(config.settings.key_map.pan_left) {
-//             translation.x -= config.settings.pan_factor.x * time.delta_secs();
-//         }
-//         if keyboard_input.pressed(config.settings.key_map.pan_right) {
-//             translation.x += config.settings.pan_factor.x * time.delta_secs();
-//         }
-//         transform.translation = translation;
-//     }
-// }

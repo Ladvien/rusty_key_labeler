@@ -24,7 +24,7 @@ fn main() {
     let data =
         std::fs::read_to_string("rusty_key_labeler/config.yaml").expect("Unable to read file");
     let config: Config = serde_yml::from_str(&data).expect("Unable to parse YAML");
-    let project = YoloProject::new(&config.project_config);
+    let project = YoloProject::new(&config.project_config).expect("Unable to create project");
 
     // let report = YoloDataQualityReport::generate(project.clone().unwrap());
 
@@ -37,19 +37,19 @@ fn main() {
     //     None => todo!(),
     // }
 
-    let project_resource = YoloProjectResource(project.unwrap());
+    // let project_resource = YoloProjectResource(project.unwrap());
 
     let bb_painter = BoundingBoxPainter::new(
         &config.settings.bounding_boxes,
         &config.project_config.export.class_map,
     );
 
-    let num_valid_images = project_resource.0.get_valid_pairs().len() as isize;
-
     let app_data = AppData {
         index: 0,
-        total_images: num_valid_images - 1,
         ui_eid: None,
+        yolo_project: project,
+        config: config.clone(),
+        left_panel_eid: None,
     };
 
     // let font = "RobotoMono-Regular.ttf";
@@ -64,14 +64,12 @@ fn main() {
         .init_resource::<Assets<ColorMaterial>>()
         .add_plugins((
             DefaultPlugins.set(ImagePlugin::default_nearest()),
-            // WorldInspectorPlugin::new(),
+            WorldInspectorPlugin::new(),
             Shape2dPlugin::default(),
             // UiDefaultPlugins,
             BevyUiViewsPlugin,
         ))
-        .insert_resource(config)
         .insert_resource(bb_painter)
-        .insert_resource(project_resource)
         .insert_resource(app_data)
         .insert_resource(ui)
         .add_systems(Startup, (setup, ui_setup))
@@ -79,7 +77,7 @@ fn main() {
             Update,
             (
                 next_and_previous_system,
-                paint_bounding_boxes_system,
+                bounding_boxes_system,
                 update_labeling_index,
                 update_current_file_name_label,
             )

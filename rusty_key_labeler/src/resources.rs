@@ -6,17 +6,19 @@ use yolo_io::YoloProjectConfig;
 
 use crate::settings::Settings;
 
-#[derive(Resource, Debug, Clone)]
-pub struct YoloProjectResource(pub YoloProject);
+// #[derive(Resource, Debug, Clone)]
+// pub struct YoloProjectResource(pub YoloProject);
 
 #[derive(Resource, Debug, Clone)]
 pub struct AppData {
     pub index: isize,
-    pub total_images: isize,
     pub ui_eid: Option<Entity>,
+    pub yolo_project: YoloProject,
+    pub config: Config,
+    pub left_panel_eid: Option<Entity>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Resource)]
+#[derive(Debug, Serialize, Deserialize, Resource, Clone)]
 pub struct Config {
     pub project_config: YoloProjectConfig,
     pub output_path: String,

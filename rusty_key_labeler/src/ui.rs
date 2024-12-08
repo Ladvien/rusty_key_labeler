@@ -57,6 +57,9 @@ pub struct Ui {
     font_handle: Option<Handle<Font>>,
 }
 
+// #[derive(Debug, Clone, Component)]
+// pub struct UiProperties;
+
 // Systems on Setup
 pub fn ui_setup(
     mut commands: Commands,
@@ -80,9 +83,10 @@ pub fn ui_setup(
         UiCamera,
     ));
 
-    let ui_eid = ui.spawn_ui(&mut commands);
+    let (container_ui_eid, left_panel_ui_eid) = ui.spawn_ui(&mut commands);
 
-    app_data.ui_eid = Some(ui_eid);
+    app_data.ui_eid = Some(container_ui_eid);
+    app_data.left_panel_eid = Some(left_panel_ui_eid);
 }
 
 // Systems on Update
@@ -122,27 +126,79 @@ impl Ui {
         }
     }
 
-    pub fn spawn_ui(&self, commands: &mut Commands) -> Entity {
+    pub fn spawn_ui(&self, commands: &mut Commands) -> (Entity, Entity) {
         // Spawn the UI Container
-        let ui_eid = commands
+        let container_eid = commands
             .spawn((
-                Name::new("left_ui_panel"),
+                Name::new("ui_container"),
                 Node {
                     flex_direction: FlexDirection::Column,
                     left: Val::Px(0.0),
                     top: Val::Px(0.0),
                     width: Val::Percent(100.0),
                     height: Val::Percent(100.0),
+                    border: UiRect::all(Val::Px(1.0)),
                     ..Default::default()
                 },
                 Transform {
                     translation: Vec3::new(0.0, 0.0, UI_Z_INDEX),
                     ..default()
                 },
+                BorderColor(Color::from(ORANGE_RED)),
+                // BorderColor(self.colors.outer_border),
+                // BackgroundColor(self.colors.background),
+                UI_LAYER,
+            ))
+            .id();
+
+        let top_half_panel = commands
+            .spawn((
+                Name::new("top_half_panel"),
+                Node {
+                    flex_direction: FlexDirection::Row,
+                    width: Val::Percent(100.0),
+                    height: Val::Percent(90.0),
+                    border: UiRect::all(Val::Px(1.0)),
+                    padding: UiRect {
+                        left: Val::Px(0.0),
+                        right: Val::Px(PADDING),
+                        top: Val::Px(0.0),
+                        bottom: Val::Px(PADDING),
+                    },
+                    ..default()
+                },
+                BorderColor(self.colors.outer_border),
+                BackgroundColor(self.colors.background),
+                Transform {
+                    translation: Vec3::new(0.0, 0.0, UI_Z_INDEX),
+                    ..default()
+                },
+                UI_LAYER,
+            ))
+            .id();
+
+        commands.entity(container_eid).add_child(top_half_panel);
+
+        let left_panel_ui_eid = commands
+            .spawn((
+                Name::new("left_ui_panel"),
+                Node {
+                    // flex_direction: FlexDirection::Column,
+                    left: Val::Px(0.0),
+                    top: Val::Px(0.0),
+                    ..Default::default()
+                },
+                Transform {
+                    translation: Vec3::new(0.0, 0.0, UI_Z_INDEX),
+                    ..default()
+                },
+                BackgroundColor(Color::from(ORANGE_RED)),
                 UILeftPanel,
                 UI_LAYER,
             ))
             .id();
+
+        commands.entity(top_half_panel).add_child(left_panel_ui_eid);
 
         let vstack_eid = commands
             .spawn((
@@ -150,8 +206,8 @@ impl Ui {
                 VStack {
                     text: "ExtendedScrollView".to_string(),
                     position: Vec2::new(0.0, 0.0),
-                    percent_width: 25.0,
-                    percent_height: 90.0,
+                    percent_width: 100.0,
+                    percent_height: 100.0,
                     layer: UI_LAYER,
                     background_color: self.colors.background,
                     border_color: self.colors.outer_border,
@@ -166,13 +222,14 @@ impl Ui {
             ))
             .id();
 
-        commands.entity(ui_eid).add_children(&[vstack_eid]);
+        commands.entity(left_panel_ui_eid).add_child(vstack_eid);
 
         let bottom_ui_eid = commands
             .spawn((
                 UIBottomPanel,
                 Name::new("bottom_ui_panel"),
                 Node {
+                    flex_direction: FlexDirection::Column,
                     width: Val::Percent(100.0),
                     min_height: Val::Percent(10.0),
                     border: UiRect::all(Val::Px(1.0)),
@@ -192,6 +249,10 @@ impl Ui {
                 },
                 UI_LAYER,
             ))
+            .insert(PickingBehavior {
+                should_block_lower: false,
+                ..default()
+            })
             .with_children(|bottom_ui_panel| {
                 bottom_ui_panel.spawn((
                     Name::new("labeling_index"),
@@ -224,9 +285,10 @@ impl Ui {
             })
             .id();
 
-        commands.entity(ui_eid).add_children(&[bottom_ui_eid]);
+        commands.entity(container_eid).add_child(bottom_ui_eid);
 
-        ui_eid
+        // Return the container entity ID
+        (container_eid, left_panel_ui_eid)
     }
 
     pub fn create_bounding_box_entry(
