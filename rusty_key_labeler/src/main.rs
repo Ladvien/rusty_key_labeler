@@ -64,41 +64,26 @@ fn main() {
         .init_resource::<Assets<ColorMaterial>>()
         .add_plugins((
             DefaultPlugins.set(ImagePlugin::default_nearest()),
-            WorldInspectorPlugin::new(),
+            // WorldInspectorPlugin::new(),
             Shape2dPlugin::default(),
             // UiDefaultPlugins,
-            // BevyUiViewsPlugin,
+            BevyUiViewsPlugin,
         ))
         .insert_resource(config)
         .insert_resource(bb_painter)
         .insert_resource(project_resource)
         .insert_resource(app_data)
         .insert_resource(ui)
-        .add_systems(
-            Startup,
-            (
-                setup,
-                // ui_setup,
-                preload_images_system,
-            ),
-        )
-        // .add_systems(FixedUpdate, ())
-        // .add_systems(
-        //     PreUpdate,
-        //     (update_labeling_index, update_current_file_name_label),
-        // )
+        .add_systems(Startup, (setup, ui_setup))
         .add_systems(
             Update,
             (
-                // load_image_system,
                 next_and_previous_system,
-                // add_bounding_boxes_system,
                 paint_bounding_boxes_system,
-                // translate_image_system,
-                // image_view_system,
-                // update_labeling_index,
-                // update_current_file_name_label,
-            ),
+                update_labeling_index,
+                update_current_file_name_label,
+            )
+                .chain(),
         )
         .run();
 }

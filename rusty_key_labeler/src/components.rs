@@ -20,6 +20,12 @@ pub struct ImageToLoad {
 }
 
 #[derive(Debug, Clone, Component)]
+pub struct ImageLoading(pub Handle<Image>);
+
+#[derive(Debug, Clone, Component)]
+pub struct ImageReady(pub Handle<Image>);
+
+#[derive(Debug, Clone, Component)]
 pub struct SelectedImage;
 
 #[derive(Debug, Clone, Component)]
