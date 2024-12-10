@@ -35,3 +35,9 @@ pub struct MainCamera;
 pub struct DebounceTimer {
     pub timer: Timer,
 }
+
+#[derive(Debug, Clone, Component)]
+pub struct TopRightPanelUI;
+
+#[derive(Debug, Clone, Component)]
+pub struct MainImage;

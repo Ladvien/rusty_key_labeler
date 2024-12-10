@@ -1,9 +1,12 @@
+use std::default;
+
 use bevy::{
     color::{Color, Srgba},
     core::Name,
     math::{Vec2, Vec3, Vec4},
-    prelude::{Component, Resource, Transform},
+    prelude::{Component, Entity, Resource, Transform},
     render::view::RenderLayers,
+    ui::{Node, Val, ZIndex},
 };
 
 use bevy_vector_shapes::{
@@ -15,7 +18,7 @@ use serde::{Deserialize, Serialize};
 use yolo_io::YoloEntry;
 
 use crate::{
-    settings::MAIN_LAYER,
+    settings::{MAIN_LAYER, UI_LAYER},
     utils::{scale_dimensions, srgba_string_to_color},
 };
 
@@ -107,7 +110,12 @@ impl BoundingBoxPainter {
         index: usize,
         entry: &YoloEntry,
         image_size: Vec2,
-    ) -> (Name, ShapeBundle<RectangleComponent>, RenderLayers) {
+    ) -> (
+        Name,
+        ShapeBundle<RectangleComponent>,
+        BoundingBoxMarker,
+        RenderLayers,
+    ) {
         let (scaled_x_center, scaled_y_center, scaled_width, scaled_height) = scale_dimensions(
             entry.x_center,
             entry.y_center,
@@ -136,6 +144,7 @@ impl BoundingBoxPainter {
                 },
                 size,
             ),
+            BoundingBoxMarker,
             MAIN_LAYER,
         )
     }

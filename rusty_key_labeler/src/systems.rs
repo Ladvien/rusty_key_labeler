@@ -1,24 +1,24 @@
-use bevy::{asset::LoadState, image, prelude::*};
+use bevy::{asset::LoadState, prelude::*};
 use bevy_ui_views::VStackUpdatedItems;
-use std::path::Path;
 use yolo_io::ImageLabelPair;
 
 use crate::{
     bounding_boxes::{BoundingBoxMarker, BoundingBoxPainter},
     resources::AppData,
-    settings::{MAIN_LAYER, UI_LAYER},
+    settings::MAIN_LAYER,
     ui::{
-        CurrentFileNameLabelUpdateNeeded, UIBottomPanel, UILeftPanel, Ui, UiLabelDataChanged,
+        CurrentFileNameLabelUpdateNeeded, UIBottomPanel, UILeftPanel, Ui,
         UiLabelingIndexUpdateNeeded,
     },
-    Config, DebounceTimer, ImageData, ImageLoading, ImageReady, ImageToLoad, MainCamera,
-    SelectedImage,
+    Config, DebounceTimer, ImageData, ImageLoading, ImageReady, MainCamera, SelectedImage,
+    TopRightPanelUI,
 };
 
 pub fn setup(
     mut commands: Commands,
     mut app_data: ResMut<AppData>,
     asset_server: Res<AssetServer>,
+    canvas: Query<Entity, With<TopRightPanelUI>>,
 ) {
     app_data.index = 0;
     let valid_pairs = app_data.yolo_project.get_valid_pairs();
@@ -27,17 +27,6 @@ pub fn setup(
     let first_image = selected_pair.clone().image_path.unwrap();
     let first_image_path = first_image.as_path().to_string_lossy().into_owned();
     let image_handle = asset_server.load::<Image>(first_image_path.clone());
-
-    commands.spawn((
-        Name::new("selected_image"),
-        Sprite {
-            image: image_handle,
-            ..Default::default()
-        },
-        Transform::from_translation(Vec3::new(0., 0., 0.)),
-        SelectedImage,
-        MAIN_LAYER,
-    ));
 
     // Load camera
     commands.spawn((
@@ -103,6 +92,7 @@ pub fn next_and_previous_system(
     images_being_loaded: Query<(Entity, &ImageLoading)>,
     time: Res<Time>,
     mut debounce_timer: Query<(Entity, &mut DebounceTimer)>,
+    canvas: Query<Entity, With<TopRightPanelUI>>,
 ) {
     // Check if images are still being loaded.
     for (entity, image_loading) in images_being_loaded.iter() {
@@ -164,6 +154,7 @@ pub fn next_and_previous_system(
         valid_pairs.len() as isize - 1,
         app_data.config.settings.delay_between_images,
         valid_pairs,
+        // canvas.iter().next(),
     );
 
     // Remove old selected image.
@@ -210,10 +201,10 @@ pub fn bounding_boxes_system(
             let mut children = Vec::new();
             let mut ui_items = Vec::new();
 
-            for (selected_image_eid, sprite) in query.iter() {
-                info!("Selected image: {:?}", sprite.image);
+            for (selected_image_eid, image_node) in query.iter() {
+                info!("Selected image: {:?}", image_node.image);
 
-                match images.get_mut(&sprite.image) {
+                match images.get_mut(&image_node.image) {
                     Some(image) => {
                         // TODO: Keep an eye on this.
                         commands
@@ -319,7 +310,10 @@ pub fn start_image_load(
     total_images: isize,
     delay_between_images: f32,
     valid_pairs: Vec<ImageLabelPair>,
+    // image_canvas_eid: Option<Entity>,
 ) {
+    info!("Loading image at index: {}", index);
+
     // Load next image
     let next_image_path = match valid_pairs[index as usize].image_path.clone() {
         Some(image) => image,
@@ -330,19 +324,24 @@ pub fn start_image_load(
     };
     let next_image = next_image_path.as_path().to_string_lossy().into_owned();
 
+    info!("Next image: {}", next_image);
+
     // Add image to the scene
     let next_image_handle = asset_server.load::<Image>(next_image.clone());
-    commands.spawn((
-        Name::new("selected_image"),
-        Sprite {
-            image: next_image_handle.clone(),
-            ..Default::default()
-        },
-        SelectedImage,
-        ImageLoading(next_image_handle),
-        Transform::from_translation(Vec3::new(0., 0., 0.)),
-        MAIN_LAYER,
-    ));
+    let image_eid = commands
+        .spawn((
+            Name::new("selected_image"),
+            Sprite {
+                image: next_image_handle.clone(),
+                ..Default::default()
+            },
+            SelectedImage,
+            ImageLoading(next_image_handle),
+            Transform::from_translation(Vec3::new(0., 0., 0.)),
+            MAIN_LAYER,
+            ZIndex(-10),
+        ))
+        .id();
 
     // Update index label
     let index_label = format!("{}/{}", index + 1, total_images + 1);
@@ -354,6 +353,8 @@ pub fn start_image_load(
         .unwrap()
         .to_string_lossy()
         .into_owned();
+
+    info!("Current file name: {}", current_file_name);
     commands.spawn(CurrentFileNameLabelUpdateNeeded(current_file_name));
 
     // Debounce timer

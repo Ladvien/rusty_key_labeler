@@ -1,18 +1,11 @@
-use std::process::id;
-
-use bevy::render::camera::CameraRenderGraph;
-use bevy::render::view::Layer;
-use bevy::{color::palettes::css::*, prelude::*};
-use bevy::{
-    prelude::*,
-    render::{
-        render_asset::RenderAssetUsages,
-        render_resource::{Extent3d, TextureDimension, TextureFormat},
-    },
+use bevy::render::{
+    render_asset::RenderAssetUsages,
+    render_resource::{Extent3d, TextureDimension, TextureFormat},
 };
-use bevy_inspector_egui::egui::Style;
+use bevy::{color::palettes::css::*, prelude::*};
 use bevy_ui_views::{VStack, VStackContainerItem};
 
+use crate::TopRightPanelUI;
 use crate::{
     settings::{UiColors, UI_LAYER},
     AppData,
@@ -78,7 +71,6 @@ pub fn ui_setup(
             order: 1,
             ..default()
         },
-        Transform::from_xyz(0., 0., 10.).looking_at(Vec3::ZERO, Vec3::Y),
         UI_LAYER,
         UiCamera,
     ));
@@ -144,9 +136,7 @@ impl Ui {
                     translation: Vec3::new(0.0, 0.0, UI_Z_INDEX),
                     ..default()
                 },
-                BorderColor(Color::from(ORANGE_RED)),
-                // BorderColor(self.colors.outer_border),
-                // BackgroundColor(self.colors.background),
+                BorderColor(self.colors.outer_border),
                 UI_LAYER,
             ))
             .id();
@@ -168,7 +158,7 @@ impl Ui {
                     ..default()
                 },
                 BorderColor(self.colors.outer_border),
-                BackgroundColor(self.colors.background),
+                // BackgroundColor(self.colors.background),
                 Transform {
                     translation: Vec3::new(0.0, 0.0, UI_Z_INDEX),
                     ..default()
@@ -186,6 +176,9 @@ impl Ui {
                     // flex_direction: FlexDirection::Column,
                     left: Val::Px(0.0),
                     top: Val::Px(0.0),
+                    min_width: Val::Percent(20.0),
+                    max_width: Val::Percent(20.0),
+                    width: Val::Percent(20.0),
                     ..Default::default()
                 },
                 Transform {
@@ -199,6 +192,29 @@ impl Ui {
             .id();
 
         commands.entity(top_half_panel).add_child(left_panel_ui_eid);
+
+        let right_top_panel_ui_eid = commands
+            .spawn((
+                Name::new("right_top_panel"),
+                Node {
+                    width: Val::Percent(80.0),
+                    height: Val::Percent(100.0),
+                    max_width: Val::Percent(80.0),
+                    ..default()
+                },
+                BorderColor(self.colors.outer_border),
+                TopRightPanelUI,
+                Transform {
+                    translation: Vec3::new(0.0, 0.0, UI_Z_INDEX),
+                    ..default()
+                },
+                UI_LAYER,
+            ))
+            .id();
+
+        commands
+            .entity(top_half_panel)
+            .add_child(right_top_panel_ui_eid);
 
         let vstack_eid = commands
             .spawn((
