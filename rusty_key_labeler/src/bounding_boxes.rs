@@ -1,12 +1,9 @@
-use std::default;
-
 use bevy::{
     color::{Color, Srgba},
     core::Name,
     math::{Vec2, Vec3, Vec4},
-    prelude::{Component, Entity, Resource, Transform},
+    prelude::{Component, Resource, Transform},
     render::view::RenderLayers,
-    ui::{Node, Val, ZIndex},
 };
 
 use bevy_vector_shapes::{
@@ -18,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use yolo_io::YoloEntry;
 
 use crate::{
-    settings::{MAIN_LAYER, UI_LAYER},
+    settings::MAIN_LAYER,
     utils::{scale_dimensions, srgba_string_to_color},
 };
 

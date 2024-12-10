@@ -80,6 +80,8 @@ fn main() {
                 bounding_boxes_system,
                 update_labeling_index,
                 update_current_file_name_label,
+                debounce_timer_system,
+                image_state_system,
             )
                 .chain(),
         )
