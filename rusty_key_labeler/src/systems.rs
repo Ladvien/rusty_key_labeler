@@ -17,6 +17,7 @@ use yolo_io::ImageLabelPair;
 
 use crate::{
     bounding_boxes::{BoundingBoxMarker, BoundingBoxPainter},
+    main,
     resources::AppData,
     settings::MAIN_LAYER,
     ui::{
@@ -120,7 +121,7 @@ pub fn next_and_previous_system(
     mut app_data: ResMut<AppData>,
     query_selected_images: Query<Entity, With<SelectedImage>>,
     debounced_timer: Query<Entity, (With<DebounceTimer>, With<SelectedImage>)>,
-    canvas_data: Query<&ComputedCanvasViewportData>,
+    mut main_camera: Query<&mut OrthographicProjection, With<MainCamera>>,
 ) {
     // Check if debounce timer is still running.
     if debounced_timer.iter().count() > 0 {
@@ -144,6 +145,18 @@ pub fn next_and_previous_system(
     if app_data.index >= valid_pairs.len() as isize {
         app_data.index = 0;
     }
+
+    let mut camera = match main_camera.iter_mut().next() {
+        Some(camera) => camera,
+        None => {
+            error!("Main camera not found");
+            return;
+        }
+    };
+
+    // We need to reset the camera scale to prepare
+    // for centering the next image.
+    camera.scale = 1.0;
 
     let total_images = valid_pairs.len() as isize - 1;
     start_image_load(
@@ -208,10 +221,15 @@ pub fn center_image_on_load(
         }
     };
 
+    let mut scale_factor = 1.0;
+    projection.scale = scale_factor;
     info!("Image size: {:?}", image_size);
-
-    projection.scale = 1.0;
-    let scale_factor = image_size.y / projection.area.height();
+    info!("Projection area: {:?}", projection.area);
+    if image_size.y > image_size.x {
+        scale_factor = image_size.y / projection.area.height();
+    } else {
+        scale_factor = image_size.x / projection.area.width();
+    }
 
     info!("Scale factor: {}", scale_factor);
     projection.scale = scale_factor;
