@@ -41,3 +41,25 @@ pub struct TopRightPanelUI;
 
 #[derive(Debug, Clone, Component)]
 pub struct MainImage;
+
+#[derive(Debug, Clone, Default, Component)]
+pub struct CanvasPosition {
+    pub x: f32,
+    pub y: f32,
+}
+
+#[derive(Debug, Clone, Default, Component)]
+pub struct CanvasSize {
+    pub width: f32,
+    pub height: f32,
+}
+
+#[derive(Debug, Clone, Component)]
+#[require(CanvasPosition, CanvasSize)]
+pub struct CanvasData {
+    pub position: CanvasPosition,
+    pub size: CanvasSize,
+}
+
+#[derive(Debug, Clone, Component)]
+pub struct ImageWithUninitializedScale;

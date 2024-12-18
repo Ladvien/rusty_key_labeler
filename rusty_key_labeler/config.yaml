@@ -26,10 +26,10 @@ project_config:
 output_path: output/
 
 settings:
-  zoom_factor: 1.0
+  zoom_factor: 1.1
   pan_factor:
-    x: 420.0
-    y: 420.0
+    x: 30.0
+    y: 30.0
   bounding_boxes:
     thickness: 5
     corner_radius: 5.0
@@ -59,8 +59,8 @@ settings:
   key_map:
     zoom_in: 'KeyE'
     zoom_out: 'KeyQ'
-    pan_up: 'KeyS'
-    pan_down: 'KeyW'
+    pan_up: 'KeyW'
+    pan_down: 'KeyS'
     pan_left: 'KeyD'
     pan_right: 'KeyA'
     # save: 13

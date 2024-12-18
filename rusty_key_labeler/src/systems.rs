@@ -1,5 +1,18 @@
-use bevy::{asset::LoadState, prelude::*};
+use bevy::{
+    app,
+    asset::LoadState,
+    color::palettes::css::REBECCA_PURPLE,
+    math::{bounding::Aabb2d, VectorSpace},
+    prelude::*,
+    render::camera::{CameraProjection, ScalingMode},
+    transform,
+};
+use bevy_inspector_egui::egui::epaint::image;
 use bevy_ui_views::VStackUpdatedItems;
+use bevy_vector_shapes::{
+    prelude::ShapeConfig,
+    shapes::{RectangleBundle, ShapeBundle},
+};
 use yolo_io::ImageLabelPair;
 
 use crate::{
@@ -7,11 +20,11 @@ use crate::{
     resources::AppData,
     settings::MAIN_LAYER,
     ui::{
-        CurrentFileNameLabelUpdateNeeded, UIBottomPanel, UILeftPanel, Ui,
+        CurrentFileNameLabelUpdateNeeded, UIBottomPanel, UILeftPanel, UITopPanel, Ui, UiBasePanel,
         UiLabelingIndexUpdateNeeded,
     },
-    Config, DebounceTimer, ImageData, ImageLoading, ImageReady, MainCamera, SelectedImage,
-    TopRightPanelUI,
+    CanvasData, CanvasPosition, CanvasSize, Config, DebounceTimer, ImageData, ImageLoading,
+    ImageReady, ImageWithUninitializedScale, MainCamera, SelectedImage, TopRightPanelUI,
 };
 
 pub fn setup(
@@ -107,6 +120,7 @@ pub fn next_and_previous_system(
     mut app_data: ResMut<AppData>,
     query_selected_images: Query<Entity, With<SelectedImage>>,
     debounced_timer: Query<Entity, (With<DebounceTimer>, With<SelectedImage>)>,
+    canvas_data: Query<&ComputedCanvasViewportData>,
 ) {
     // Check if debounce timer is still running.
     if debounced_timer.iter().count() > 0 {
@@ -147,6 +161,66 @@ pub fn next_and_previous_system(
     }
 }
 
+pub fn center_image_on_load(
+    mut commands: Commands,
+    canvas_data: Query<&ComputedCanvasViewportData>,
+    mut uninitialized_images: Query<
+        (Entity, &Sprite, &Transform),
+        With<ImageWithUninitializedScale>,
+    >,
+    mut main_camera: Query<&mut OrthographicProjection, With<MainCamera>>,
+    images: Res<Assets<Image>>,
+) {
+    if canvas_data.iter().count() == 0 {
+        return;
+    }
+
+    let canvas_data = match canvas_data.iter().next() {
+        Some(data) => data,
+        None => {
+            error!("Canvas data not found");
+            return;
+        }
+    };
+
+    let (entity, sprite, mut transform) = match uninitialized_images.iter_mut().next() {
+        Some((entity, sprite, transform)) => (entity, sprite, transform),
+        None => {
+            return;
+        }
+    };
+
+    info!("Image path: {:?}", sprite.image.path());
+    let image_size = match images.get(&sprite.image) {
+        Some(image) => Vec2::new(image.width() as f32, image.height() as f32),
+        None => {
+            error!("Image not found");
+            return;
+        }
+    };
+
+    // Adjust camera to fit image.
+    let mut projection = match main_camera.iter_mut().next() {
+        Some(projection) => projection,
+        None => {
+            error!("Main camera not found");
+            return;
+        }
+    };
+
+    info!("Image size: {:?}", image_size);
+
+    projection.scale = 1.0;
+    let scale_factor = image_size.y / projection.area.height();
+
+    info!("Scale factor: {}", scale_factor);
+    projection.scale = scale_factor;
+
+    commands
+        .entity(entity)
+        .remove::<ImageWithUninitializedScale>();
+}
+
 pub fn start_image_load(
     commands: &mut Commands,
     asset_server: Res<AssetServer>,
@@ -179,6 +253,7 @@ pub fn start_image_load(
         },
         SelectedImage,
         ImageLoading(next_image_handle),
+        ImageWithUninitializedScale,
         Transform::from_translation(Vec3::new(0., 0., 0.)),
         MAIN_LAYER,
         ZIndex(-10),
@@ -303,44 +378,195 @@ pub fn bounding_boxes_system(
     }
 }
 
-// // WILO: I'd like to stop changing the position of the camera
-// // and instead change the position and or scale of the image.
-pub fn image_view_system(
+pub fn compute_canvas_viewport_data(
     mut commands: Commands,
-    time: Res<Time>,
-    config: Res<Config>,
-    window: Query<&Window>,
-    just_selected: Query<(Entity, &ImageData), Added<SelectedImage>>,
+    top_right_hands_panel: Query<&ComputedNode, With<TopRightPanelUI>>,
+    left_ui_panel_transform: Query<&ComputedNode, With<UILeftPanel>>,
+    base_panel_transform: Query<&ComputedNode, With<UiBasePanel>>,
+    bottom_ui_panel_transform: Query<&ComputedNode, With<UIBottomPanel>>,
+    mut computed_data: Query<&mut ComputedCanvasViewportData>,
 ) {
-    // 1. Ensure the image is maxed height or width according to the viewport size.
-    // 2. Center the image on first selected.
-    // 3. Allow panning and zooming.
+    let cnode = match top_right_hands_panel.iter().next() {
+        Some(cnode) => cnode,
+        None => {
+            error!("Top right panel not found");
+            return;
+        }
+    };
 
-    // WILO: Re-think approach, this isn't working.
+    let left_ui_panel_cnode = match left_ui_panel_transform.iter().next() {
+        Some(cnode) => cnode,
+        None => {
+            error!("Left UI panel transform not found");
+            return;
+        }
+    };
 
-    let window = window.iter().next().unwrap();
+    let base_panel_cnode = match base_panel_transform.iter().next() {
+        Some(cnode) => cnode,
+        None => {
+            error!("Base panel transform not found");
+            return;
+        }
+    };
+
+    let bottom_ui_panel_cnode = match bottom_ui_panel_transform.iter().next() {
+        Some(cnode) => cnode,
+        None => {
+            error!("Bottom panel transform not found");
+            return;
+        }
+    };
+
+    // TODO: No idea why inverse_scale_factor is needed.
+    let x_canvas_offset =
+        left_ui_panel_cnode.size().x / 2. * left_ui_panel_cnode.inverse_scale_factor();
+    let y_canvas_offset =
+        bottom_ui_panel_cnode.size().y / 2. * bottom_ui_panel_cnode.inverse_scale_factor();
+
+    let width = cnode.size().x - x_canvas_offset;
+    let height = cnode.size().y - y_canvas_offset;
+
+    if width <= 0.0 || height <= 0.0 {
+        info!("Computed canvas viewport data is unavailable");
+        return;
+    }
+
+    // If the dimensions haven't changed, then we don't need to update the data.
+    if computed_data.iter().count() > 0 {
+        let data = match computed_data.iter().next() {
+            Some(data) => data,
+            None => {
+                error!("Computed data not found");
+                return;
+            }
+        };
+
+        if data.width == width
+            && data.height == height
+            && data.x_offset == x_canvas_offset
+            && data.y_offset == y_canvas_offset
+        {
+            return;
+        }
+    }
+
+    let canvas_width = (width + x_canvas_offset) / 2.;
+    let canvas_height = (height + y_canvas_offset) / 2.;
+
+    let data = ComputedCanvasViewportData {
+        x_offset: x_canvas_offset,
+        y_offset: y_canvas_offset,
+        width: canvas_width,
+        height: canvas_height,
+    };
+
+    if computed_data.iter().count() == 0 {
+        commands.spawn(data);
+        return;
+    }
+
+    for mut computed in computed_data.iter_mut() {
+        *computed = data.clone();
+    }
 }
 
-// pub fn translate_image_system(
-//     mut query: Query<&mut Transform, With<SelectedImage>>,
-//     keyboard_input: Res<ButtonInput<KeyCode>>,
-//     time: Res<Time>,
-//     config: Res<Config>,
-// ) {
-//     for mut transform in query.iter_mut() {
-//         let mut translation = transform.translation;
-//         if keyboard_input.pressed(config.settings.key_map.pan_up) {
-//             translation.y += config.settings.pan_factor.y * time.delta_secs();
-//         }
-//         if keyboard_input.pressed(config.settings.key_map.pan_down) {
-//             translation.y -= config.settings.pan_factor.y * time.delta_secs();
-//         }
-//         if keyboard_input.pressed(config.settings.key_map.pan_left) {
-//             translation.x -= config.settings.pan_factor.x * time.delta_secs();
-//         }
-//         if keyboard_input.pressed(config.settings.key_map.pan_right) {
-//             translation.x += config.settings.pan_factor.x * time.delta_secs();
-//         }
-//         transform.translation = translation;
-//     }
-// }
+#[derive(Debug, Clone, Default, Component)]
+pub struct CanvasMarker;
+
+#[derive(Debug, Clone, Default, Component)]
+pub struct ComputedCanvasViewportData {
+    pub x_offset: f32,
+    pub y_offset: f32,
+    pub width: f32,
+    pub height: f32,
+}
+
+pub fn image_view_system(
+    mut commands: Commands,
+    window: Query<&Window>,
+    mut selected_image: Query<(Entity, &mut Sprite, &Transform), With<SelectedImage>>,
+    mut main_camera: Query<(&Camera, &mut OrthographicProjection), With<MainCamera>>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
+    app_data: Res<AppData>,
+    images: Res<Assets<Image>>,
+    canvas_data: Query<&ComputedCanvasViewportData, Changed<ComputedCanvasViewportData>>,
+    canvas_marker: Query<Entity, With<CanvasMarker>>,
+) {
+    if canvas_data.iter().count() == 0 {
+        return;
+    }
+
+    if canvas_marker.iter().count() > 0 {
+        return;
+    }
+
+    let canvas_data = match canvas_data.iter().next() {
+        Some(data) => data,
+        None => {
+            error!("Canvas data not found");
+            return;
+        }
+    };
+
+    // let debug_canvas = (
+    //     Name::new("debug_canvas"),
+    //     CanvasMarker,
+    //     ShapeBundle::rect(
+    //         &ShapeConfig {
+    //             transform: Transform::from_translation(Vec3::new(
+    //                 canvas_data.x_offset,
+    //                 canvas_data.y_offset,
+    //                 99.0,
+    //             )),
+    //             // hollow: true,
+    //             // thickness: 50.0,
+    //             ..ShapeConfig::default_2d()
+    //         },
+    //         Vec2::new(canvas_data.width, canvas_data.height),
+    //     ),
+    //     MAIN_LAYER,
+    // );
+
+    // commands.spawn(debug_canvas);
+
+    // let zoom_factor = app_data.config.settings.zoom_factor;
+    // if keyboard_input.pressed(app_data.config.settings.key_map.zoom_in) {
+    //     projection.scale *= zoom_factor;
+    // }
+    // if keyboard_input.pressed(app_data.config.settings.key_map.zoom_out) {
+    //     // If image width extent is greater than the projection width,
+    //     // then we can zoom in.
+    //     projection.scale /= zoom_factor;
+    // }
+
+    // commands.spawn(t);
+    // if keyboard_input.pressed(app_data.config.settings.key_map.pan_up) {}
+    // if keyboard_input.pressed(app_data.config.settings.key_map.pan_down) {}
+    // if keyboard_input.pressed(app_data.config.settings.key_map.pan_left) {}
+    // if keyboard_input.pressed(app_data.config.settings.key_map.pan_right) {}
+}
+
+pub fn translate_image_system(
+    mut query: Query<&mut Transform, With<SelectedImage>>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
+    time: Res<Time>,
+    config: Res<Config>,
+) {
+    for mut transform in query.iter_mut() {
+        let mut translation = transform.translation;
+        if keyboard_input.pressed(config.settings.key_map.pan_up) {
+            translation.y += config.settings.pan_factor.y * time.delta_secs();
+        }
+        if keyboard_input.pressed(config.settings.key_map.pan_down) {
+            translation.y -= config.settings.pan_factor.y * time.delta_secs();
+        }
+        if keyboard_input.pressed(config.settings.key_map.pan_left) {
+            translation.x -= config.settings.pan_factor.x * time.delta_secs();
+        }
+        if keyboard_input.pressed(config.settings.key_map.pan_right) {
+            translation.x += config.settings.pan_factor.x * time.delta_secs();
+        }
+        transform.translation = translation;
+    }
+}

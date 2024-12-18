@@ -18,11 +18,17 @@ pub const PADDING: f32 = 5.0;
 pub struct UiCamera;
 
 #[derive(Debug, Clone, Component)]
+pub struct UiBasePanel;
+
+#[derive(Debug, Clone, Component)]
 pub struct UILeftPanel;
 
 #[derive(Debug, Clone, Component, Default)]
 #[require(Name, Node, Transform, BorderColor, BackgroundColor)]
 pub struct UIBottomPanel;
+
+#[derive(Debug, Clone, Component)]
+pub struct UITopPanel;
 
 #[derive(Debug, Clone, Component)]
 pub struct UiLabelDataChanged;
@@ -123,13 +129,14 @@ impl Ui {
         let container_eid = commands
             .spawn((
                 Name::new("ui_container"),
+                UiBasePanel,
                 Node {
                     flex_direction: FlexDirection::Column,
                     left: Val::Px(0.0),
                     top: Val::Px(0.0),
                     width: Val::Percent(100.0),
                     height: Val::Percent(100.0),
-                    border: UiRect::all(Val::Px(1.0)),
+                    border: UiRect::all(Val::Px(4.0)),
                     ..Default::default()
                 },
                 Transform {
@@ -137,6 +144,7 @@ impl Ui {
                     ..default()
                 },
                 BorderColor(self.colors.outer_border),
+                // BorderColor(Color::from(ORANGE)),
                 UI_LAYER,
             ))
             .id();
@@ -163,6 +171,7 @@ impl Ui {
                     translation: Vec3::new(0.0, 0.0, UI_Z_INDEX),
                     ..default()
                 },
+                UITopPanel,
                 UI_LAYER,
             ))
             .id();
@@ -202,7 +211,6 @@ impl Ui {
                     max_width: Val::Percent(80.0),
                     ..default()
                 },
-                BorderColor(self.colors.outer_border),
                 TopRightPanelUI,
                 Transform {
                     translation: Vec3::new(0.0, 0.0, UI_Z_INDEX),

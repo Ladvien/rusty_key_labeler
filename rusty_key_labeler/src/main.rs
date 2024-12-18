@@ -63,7 +63,7 @@ fn main() {
     App::new()
         .init_resource::<Assets<ColorMaterial>>()
         .add_plugins((
-            DefaultPlugins.set(ImagePlugin::default_nearest()),
+            DefaultPlugins.set(ImagePlugin::default_nearest()), // Makes images crisp
             WorldInspectorPlugin::new(),
             Shape2dPlugin::default(),
             // UiDefaultPlugins,
@@ -82,6 +82,10 @@ fn main() {
                 update_current_file_name_label,
                 debounce_timer_system,
                 image_state_system,
+                image_view_system,
+                translate_image_system,
+                compute_canvas_viewport_data,
+                center_image_on_load,
             )
                 .chain(),
         )
