@@ -212,17 +212,27 @@ pub fn center_image_on_load(
         }
     };
 
-    projection.scale = 1.0;
-    let mut scale_factor = 1.0;
     camera_transform.translation = Vec3::new(canvas_data.x_offset, canvas_data.y_offset, 0.);
 
     info!("Image size: {:?}", image_size);
     info!("Projection area: {:?}", projection.area);
+    // TODO: Handle scaling in when the image isn't large enough.
 
-    if image_size.y > image_size.x {
-        scale_factor = image_size.y / (projection.area.height() - canvas_data.y_offset);
+    // if image_size.y >= image_size.x {
+    //     scale_factor = image_size.y / (projection.area.height() - canvas_data.y_offset / 2.);
+    // } else {
+    //     scale_factor = image_size.x / (projection.area.width() - canvas_data.x_offset / 2.);
+    // }
+
+    projection.scale = 1.0;
+    let mut scale_factor = 1.0;
+    let height_scale_factor = image_size.y / (projection.area.height() - canvas_data.y_offset / 2.);
+    let width_scale_factor = image_size.x / (projection.area.width() - canvas_data.x_offset / 2.);
+
+    if height_scale_factor > width_scale_factor {
+        scale_factor = height_scale_factor;
     } else {
-        scale_factor = image_size.x / (projection.area.width()) - canvas_data.x_offset;
+        scale_factor = width_scale_factor;
     }
 
     info!("Scale factor: {}", scale_factor);
