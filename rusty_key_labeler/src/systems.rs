@@ -1,31 +1,17 @@
-use bevy::{
-    app,
-    asset::LoadState,
-    color::palettes::css::REBECCA_PURPLE,
-    math::{bounding::Aabb2d, VectorSpace},
-    prelude::*,
-    render::camera::{CameraProjection, ScalingMode},
-    transform,
-};
-use bevy_inspector_egui::egui::epaint::image;
+use bevy::{asset::LoadState, prelude::*};
 use bevy_ui_views::VStackUpdatedItems;
-use bevy_vector_shapes::{
-    prelude::ShapeConfig,
-    shapes::{RectangleBundle, ShapeBundle},
-};
 use yolo_io::ImageLabelPair;
 
 use crate::{
     bounding_boxes::{BoundingBoxMarker, BoundingBoxPainter},
-    main,
     resources::AppData,
     settings::MAIN_LAYER,
     ui::{
-        CurrentFileNameLabelUpdateNeeded, UIBottomPanel, UILeftPanel, UITopPanel, Ui, UiBasePanel,
+        CurrentFileNameLabelUpdateNeeded, UIBottomPanel, UILeftPanel, Ui, UiBasePanel,
         UiLabelingIndexUpdateNeeded,
     },
-    CanvasData, CanvasPosition, CanvasSize, Config, DebounceTimer, ImageData, ImageLoading,
-    ImageReady, ImageWithUninitializedScale, MainCamera, SelectedImage, TopRightPanelUI,
+    Config, DebounceTimer, ImageLoading, ImageReady, ImageWithUninitializedScale, MainCamera,
+    SelectedImage, TopRightPanelUI,
 };
 
 pub fn setup(
@@ -178,10 +164,13 @@ pub fn center_image_on_load(
     mut commands: Commands,
     canvas_data: Query<&ComputedCanvasViewportData>,
     mut uninitialized_images: Query<
-        (Entity, &Sprite, &Transform),
+        (Entity, &Sprite, &mut Transform),
         With<ImageWithUninitializedScale>,
     >,
-    mut main_camera: Query<&mut OrthographicProjection, With<MainCamera>>,
+    mut main_camera: Query<
+        (&mut OrthographicProjection, &mut Transform),
+        (With<MainCamera>, Without<ImageWithUninitializedScale>),
+    >,
     images: Res<Assets<Image>>,
 ) {
     if canvas_data.iter().count() == 0 {
@@ -203,6 +192,8 @@ pub fn center_image_on_load(
         }
     };
 
+    transform.translation = Vec3::new(canvas_data.x_offset, canvas_data.y_offset, 0.);
+
     info!("Image path: {:?}", sprite.image.path());
     let image_size = match images.get(&sprite.image) {
         Some(image) => Vec2::new(image.width() as f32, image.height() as f32),
@@ -213,22 +204,25 @@ pub fn center_image_on_load(
     };
 
     // Adjust camera to fit image.
-    let mut projection = match main_camera.iter_mut().next() {
-        Some(projection) => projection,
+    let (mut projection, mut camera_transform) = match main_camera.iter_mut().next() {
+        Some((projection, camera_transform)) => (projection, camera_transform),
         None => {
             error!("Main camera not found");
             return;
         }
     };
 
+    projection.scale = 1.0;
     let mut scale_factor = 1.0;
-    projection.scale = scale_factor;
+    camera_transform.translation = Vec3::new(canvas_data.x_offset, canvas_data.y_offset, 0.);
+
     info!("Image size: {:?}", image_size);
     info!("Projection area: {:?}", projection.area);
+
     if image_size.y > image_size.x {
-        scale_factor = image_size.y / projection.area.height();
+        scale_factor = image_size.y / (projection.area.height() - canvas_data.y_offset);
     } else {
-        scale_factor = image_size.x / projection.area.width();
+        scale_factor = image_size.x / (projection.area.width()) - canvas_data.x_offset;
     }
 
     info!("Scale factor: {}", scale_factor);

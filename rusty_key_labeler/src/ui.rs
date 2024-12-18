@@ -194,7 +194,8 @@ impl Ui {
                     translation: Vec3::new(0.0, 0.0, UI_Z_INDEX),
                     ..default()
                 },
-                BackgroundColor(Color::from(ORANGE_RED)),
+                BackgroundColor(self.colors.background),
+                // BackgroundColor(Color::from(ORANGE_RED)),
                 UILeftPanel,
                 UI_LAYER,
             ))
