@@ -5,56 +5,15 @@ use bevy::render::{
 use bevy::{color::palettes::css::*, prelude::*};
 use bevy_ui_views::{VStack, VStackContainerItem};
 
-use crate::TopRightPanelUI;
 use crate::{
     settings::{UiColors, UI_LAYER},
-    AppData,
+    AppData, CurrentFileNameLabel, CurrentFileNameLabelUpdateNeeded, UIBottomPanel, UILeftPanel,
+    UITopPanel, UiBasePanel, UiLabelingIndex, UiLabelingIndexUpdateNeeded,
 };
+use crate::{TopRightPanelUI, Ui, UiCamera};
 
 pub const UI_Z_INDEX: f32 = 99.0;
 pub const PADDING: f32 = 5.0;
-
-#[derive(Debug, Clone, Component)]
-pub struct UiCamera;
-
-#[derive(Debug, Clone, Component)]
-pub struct UiBasePanel;
-
-#[derive(Debug, Clone, Component)]
-pub struct UILeftPanel;
-
-#[derive(Debug, Clone, Component, Default)]
-#[require(Name, Node, Transform, BorderColor, BackgroundColor)]
-pub struct UIBottomPanel;
-
-#[derive(Debug, Clone, Component)]
-pub struct UITopPanel;
-
-#[derive(Debug, Clone, Component)]
-pub struct UiLabelDataChanged;
-
-// UI Part Markers
-#[derive(Debug, Clone, Component)]
-pub struct UiLabelingIndex;
-
-#[derive(Debug, Clone, Component)]
-pub struct UiLabelingIndexUpdateNeeded(pub String);
-
-#[derive(Debug, Clone, Component)]
-pub struct CurrentFileNameLabel;
-
-#[derive(Debug, Clone, Component)]
-pub struct CurrentFileNameLabelUpdateNeeded(pub String);
-
-// END UI Part Markers
-
-#[derive(Debug, Clone, Resource)]
-pub struct Ui {
-    pub colors: UiColors,
-    pub font_size: f32,
-    pub font_path: String,
-    font_handle: Option<Handle<Font>>,
-}
 
 // #[derive(Debug, Clone, Component)]
 // pub struct UiProperties;

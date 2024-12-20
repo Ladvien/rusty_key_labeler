@@ -3,19 +3,16 @@ mod components;
 mod resources;
 mod settings;
 mod systems;
-mod ui;
 mod utils;
 
 use bevy::prelude::*;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_ui_views::BevyUiViewsPlugin;
-
 use bevy_vector_shapes::Shape2dPlugin;
 use bounding_boxes::BoundingBoxPainter;
 use components::*;
 use resources::*;
 use systems::*;
-use ui::{ui_setup, update_current_file_name_label, update_labeling_index, Ui};
 use yolo_io::YoloProject;
 
 fn main() {
