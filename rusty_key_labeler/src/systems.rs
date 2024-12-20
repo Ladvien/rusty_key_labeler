@@ -1,13 +1,17 @@
 use bevy::{asset::LoadState, prelude::*};
 use bevy_ui_views::VStackUpdatedItems;
+use bevy_vector_shapes::{
+    prelude::ShapeConfig,
+    shapes::{RectangleBundle, ShapeBundle},
+};
 use yolo_io::ImageLabelPair;
 
 use crate::{
     bounding_boxes::{BoundingBoxMarker, BoundingBoxPainter},
     resources::AppData,
-    settings::MAIN_LAYER,
+    settings::{MAIN_LAYER, UI_LAYER},
     ui::{
-        CurrentFileNameLabelUpdateNeeded, UIBottomPanel, UILeftPanel, Ui, UiBasePanel,
+        CurrentFileNameLabelUpdateNeeded, UIBottomPanel, UILeftPanel, Ui, UiBasePanel, UiCamera,
         UiLabelingIndexUpdateNeeded,
     },
     Config, DebounceTimer, ImageLoading, ImageReady, ImageWithUninitializedScale, MainCamera,
@@ -212,30 +216,21 @@ pub fn center_image_on_load(
         }
     };
 
-    camera_transform.translation = Vec3::new(canvas_data.x_offset, canvas_data.y_offset, 0.);
+    camera_transform.translation = canvas_data.translation;
 
-    info!("Image size: {:?}", image_size);
-    info!("Projection area: {:?}", projection.area);
-    // TODO: Handle scaling in when the image isn't large enough.
+    // let height_scale_factor = image_size.y / (projection.area.height() - canvas_data.y_offset / 2.);
+    // let width_scale_factor = image_size.x / (projection.area.width() - canvas_data.x_offset / 2.);
 
-    // if image_size.y >= image_size.x {
-    //     scale_factor = image_size.y / (projection.area.height() - canvas_data.y_offset / 2.);
-    // } else {
-    //     scale_factor = image_size.x / (projection.area.width() - canvas_data.x_offset / 2.);
-    // }
+    let height_scale_factor = image_size.y / canvas_data.height;
+    let width_scale_factor = image_size.x / canvas_data.width;
 
-    projection.scale = 1.0;
     let mut scale_factor = 1.0;
-    let height_scale_factor = image_size.y / (projection.area.height() - canvas_data.y_offset / 2.);
-    let width_scale_factor = image_size.x / (projection.area.width() - canvas_data.x_offset / 2.);
-
     if height_scale_factor > width_scale_factor {
         scale_factor = height_scale_factor;
     } else {
         scale_factor = width_scale_factor;
     }
 
-    info!("Scale factor: {}", scale_factor);
     projection.scale = scale_factor;
 
     commands
@@ -407,8 +402,10 @@ pub fn compute_canvas_viewport_data(
     base_panel_transform: Query<&ComputedNode, With<UiBasePanel>>,
     bottom_ui_panel_transform: Query<&ComputedNode, With<UIBottomPanel>>,
     mut computed_data: Query<&mut ComputedCanvasViewportData>,
+    window: Query<&Window>,
+    main_camera: Query<&OrthographicProjection, With<UiCamera>>,
 ) {
-    let cnode = match top_right_hands_panel.iter().next() {
+    let top_right_cnode = match top_right_hands_panel.iter().next() {
         Some(cnode) => cnode,
         None => {
             error!("Top right panel not found");
@@ -440,16 +437,38 @@ pub fn compute_canvas_viewport_data(
         }
     };
 
+    let window = match window.iter().next() {
+        Some(window) => window,
+        None => {
+            error!("Window not found");
+            return;
+        }
+    };
+
+    let projection = match main_camera.iter().next() {
+        Some(projection) => projection,
+        None => {
+            error!("Main camera not found");
+            return;
+        }
+    };
+
     // TODO: No idea why inverse_scale_factor is needed.
-    let x_canvas_offset =
-        left_ui_panel_cnode.size().x / 2. * left_ui_panel_cnode.inverse_scale_factor();
-    let y_canvas_offset =
-        bottom_ui_panel_cnode.size().y / 2. * bottom_ui_panel_cnode.inverse_scale_factor();
+    // let x_canvas_offset =
+    //     left_ui_panel_cnode.size().x / 2. * left_ui_panel_cnode.inverse_scale_factor();
+    // let y_canvas_offset =
+    //     bottom_ui_panel_cnode.size().y / 2. * bottom_ui_panel_cnode.inverse_scale_factor();
 
-    let width = cnode.size().x - x_canvas_offset;
-    let height = cnode.size().y - y_canvas_offset;
+    // WILO: This calculates size correctly for MAIN_CAMERA.
+    let canvas_width = (top_right_cnode.size().x) * projection.scale;
+    let canvas_height = (top_right_cnode.size().y) * projection.scale;
 
-    if width <= 0.0 || height <= 0.0 {
+    info!("projection: {:#?}", projection);
+    info!("top_right_cnode: {:#?}", top_right_cnode.size());
+    info!("Canvas width: {}, height: {}", canvas_width, canvas_height);
+    info!("Window size: {:#?}", window.physical_size());
+
+    if canvas_width <= 0.0 || canvas_height <= 0.0 {
         info!("Computed canvas viewport data is unavailable");
         return;
     }
@@ -464,24 +483,34 @@ pub fn compute_canvas_viewport_data(
             }
         };
 
-        if data.width == width
-            && data.height == height
-            && data.x_offset == x_canvas_offset
-            && data.y_offset == y_canvas_offset
+        if data.width == canvas_width && data.height == canvas_height
+        // && data.x_offset == x_canvas_offset
+        // && data.y_offset == y_canvas_offset
         {
             return;
         }
     }
 
-    let canvas_width = (width + x_canvas_offset) / 2.;
-    let canvas_height = (height + y_canvas_offset) / 2.;
-
     let data = ComputedCanvasViewportData {
-        x_offset: x_canvas_offset,
-        y_offset: y_canvas_offset,
+        // x_offset: x_canvas_offset,
+        // y_offset: y_canvas_offset,
+        x_offset: 0.0,
+        y_offset: 0.0,
         width: canvas_width,
         height: canvas_height,
+        // translation: Vec3::new(
+        //     canvas_width / 2. - x_canvas_offset,
+        //     canvas_height / 2. - y_canvas_offset,
+        //     0.0,
+        // ),
+        translation: Vec3::new(0., 0., 0.),
     };
+
+    // 2560x1440
+    // 2560 * 0.75 = 1920
+    // 1440 * 0.90 = 1296
+
+    info!("Computed canvas viewport data: {:#?}", data);
 
     if computed_data.iter().count() == 0 {
         commands.spawn(data);
@@ -502,6 +531,7 @@ pub struct ComputedCanvasViewportData {
     pub y_offset: f32,
     pub width: f32,
     pub height: f32,
+    pub translation: Vec3,
 }
 
 pub fn image_view_system(
@@ -514,6 +544,7 @@ pub fn image_view_system(
     images: Res<Assets<Image>>,
     canvas_data: Query<&ComputedCanvasViewportData, Changed<ComputedCanvasViewportData>>,
     canvas_marker: Query<Entity, With<CanvasMarker>>,
+    main_camera_transform: Query<&Transform, With<MainCamera>>,
 ) {
     if canvas_data.iter().count() == 0 {
         return;
@@ -531,26 +562,36 @@ pub fn image_view_system(
         }
     };
 
-    // let debug_canvas = (
-    //     Name::new("debug_canvas"),
-    //     CanvasMarker,
-    //     ShapeBundle::rect(
-    //         &ShapeConfig {
-    //             transform: Transform::from_translation(Vec3::new(
-    //                 canvas_data.x_offset,
-    //                 canvas_data.y_offset,
-    //                 99.0,
-    //             )),
-    //             // hollow: true,
-    //             // thickness: 50.0,
-    //             ..ShapeConfig::default_2d()
-    //         },
-    //         Vec2::new(canvas_data.width, canvas_data.height),
-    //     ),
-    //     MAIN_LAYER,
-    // );
+    let (camera, projection) = match main_camera.iter_mut().next() {
+        Some((camera, projection)) => (camera, projection),
+        None => {
+            error!("Main camera not found");
+            return;
+        }
+    };
 
-    // commands.spawn(debug_canvas);
+    let mut transform = Transform::from_translation(canvas_data.translation);
+
+    // WILO: This calculates size correctly for MAIN_CAMERA.
+    let size = Vec2::new(canvas_data.width, canvas_data.height) / 2. * projection.scale;
+
+    let debug_canvas = (
+        Name::new("debug_canvas"),
+        CanvasMarker,
+        ShapeBundle::rect(
+            &ShapeConfig {
+                // transform,
+                hollow: true,
+                // thickness: 5.0,
+                render_layers: Some(MAIN_LAYER),
+                ..ShapeConfig::default_2d()
+            },
+            size,
+        ),
+        MAIN_LAYER,
+    );
+
+    commands.spawn(debug_canvas);
 
     // let zoom_factor = app_data.config.settings.zoom_factor;
     // if keyboard_input.pressed(app_data.config.settings.key_map.zoom_in) {

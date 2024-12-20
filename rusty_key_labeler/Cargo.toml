@@ -7,7 +7,7 @@ version = "0.1.0"
 bevy = {version = "0.15.0", features = ["dynamic_linking", "serialize", "jpeg", "png"]}
 
 bevy_ui_views = {path = "../bevy_ui_views"}
-bevy_vector_shapes = "0.9.2"
+bevy_vector_shapes = "0.9.3"
 hashbrown = {version = "0.15.1", features = ["serde"]}
 itertools = "0.13.0"
 serde = "1.0"
