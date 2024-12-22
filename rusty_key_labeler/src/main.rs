@@ -82,7 +82,7 @@ fn main() {
                 image_view_system,
                 translate_image_system,
                 compute_canvas_viewport_data,
-                center_image_on_load,
+                // center_image_on_load,
             )
                 .chain(),
         )

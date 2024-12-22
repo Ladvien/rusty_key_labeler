@@ -25,8 +25,6 @@ pub struct CanvasMarker;
 
 #[derive(Debug, Clone, Default, Component)]
 pub struct ComputedCanvasViewportData {
-    pub x_offset: f32,
-    pub y_offset: f32,
     pub width: f32,
     pub height: f32,
     pub translation: Vec3,

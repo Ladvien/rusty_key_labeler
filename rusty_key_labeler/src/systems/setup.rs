@@ -1,5 +1,9 @@
 use super::start_image_load;
-use crate::{resources::AppData, settings::MAIN_LAYER, MainCamera};
+use crate::{
+    resources::AppData,
+    settings::{MAIN_LAYER, UI_LAYER},
+    MainCamera, Ui, UiCamera,
+};
 use bevy::prelude::*;
 
 pub fn setup(
@@ -37,4 +41,32 @@ pub fn setup(
         0.0,
         valid_pairs,
     );
+}
+
+// Systems on Setup
+pub fn ui_setup(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut app_data: ResMut<AppData>,
+    mut ui: ResMut<Ui>,
+) {
+    let font_handle: Handle<Font> = asset_server.load(ui.font_path.clone());
+    ui.font_handle = Some(font_handle.clone());
+
+    commands.spawn((
+        Name::new("ui_camera"),
+        Camera2d::default(),
+        Camera {
+            // Render the UI on top of everything else.
+            order: 1,
+            ..default()
+        },
+        UI_LAYER,
+        UiCamera,
+    ));
+
+    let (container_ui_eid, left_panel_ui_eid) = ui.spawn_ui(&mut commands);
+
+    app_data.ui_eid = Some(container_ui_eid);
+    app_data.left_panel_eid = Some(left_panel_ui_eid);
 }

@@ -18,34 +18,6 @@ pub const PADDING: f32 = 5.0;
 // #[derive(Debug, Clone, Component)]
 // pub struct UiProperties;
 
-// Systems on Setup
-pub fn ui_setup(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    mut app_data: ResMut<AppData>,
-    mut ui: ResMut<Ui>,
-) {
-    let font_handle: Handle<Font> = asset_server.load(ui.font_path.clone());
-    ui.font_handle = Some(font_handle.clone());
-
-    commands.spawn((
-        Name::new("ui_camera"),
-        Camera2d::default(),
-        Camera {
-            // Render the UI on top of everything else.
-            order: 1,
-            ..default()
-        },
-        UI_LAYER,
-        UiCamera,
-    ));
-
-    let (container_ui_eid, left_panel_ui_eid) = ui.spawn_ui(&mut commands);
-
-    app_data.ui_eid = Some(container_ui_eid);
-    app_data.left_panel_eid = Some(left_panel_ui_eid);
-}
-
 // Systems on Update
 pub fn update_labeling_index(
     mut commands: Commands,
