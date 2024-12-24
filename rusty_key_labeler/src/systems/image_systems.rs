@@ -4,6 +4,7 @@ use crate::{
     DebounceTimer, ImageLoading, ImageWithUninitializedScale,
     {CurrentFileNameLabelUpdateNeeded, UiLabelingIndexUpdateNeeded},
 };
+use bevy::color::palettes::css::INDIAN_RED;
 use bevy::prelude::*;
 use bevy_vector_shapes::{
     prelude::ShapeConfig,
@@ -232,28 +233,55 @@ pub fn compute_canvas_viewport_data(
         }
     };
 
-    // WILO: This calculates size correctly for MAIN_CAMERA.
-    let canvas_width = top_right_ui_compute_node.size().x * main_camera_projection.scale / 2.;
-    let canvas_height = top_right_ui_compute_node.size().y * main_camera_projection.scale / 2.;
+    let window_width = window.physical_width() as f32;
+    let window_height = window.physical_height() as f32;
 
-    let unscaled_x_offset =
-        window.physical_width() as f32 - top_right_ui_compute_node.size().x - 12. - 16.;
-    let x_offset_extent = unscaled_x_offset / 2. * top_right_ui_compute_node.inverse_scale_factor()
-        / main_camera_projection.scale;
+    let canvas_width = (window_width * 0.8).ceil() - 10.;
+    let canvas_height = (window_height * 0.9).ceil() - 10.;
 
-    let unscaled_y_offset =
-        window.physical_height() as f32 - top_right_ui_compute_node.size().y - 12. - 16.;
+    let x_offset = (window_width - canvas_width) / 4.;
+    let y_offset = (window_height - canvas_height) / 4.;
 
-    // info!("Outline_width: {}",
+    let x_offset = x_offset - 5.;
+    let y_offset = y_offset - 5.;
 
-    let y_offset_extent = unscaled_y_offset / 2. * top_right_ui_compute_node.inverse_scale_factor()
-        / main_camera_projection.scale;
+    // // WILO: This calculates size correctly for MAIN_CAMERA.
+    // let canvas_width =
+    //     top_right_ui_compute_node.outlined_node_size().x * main_camera_projection.scale / 2.;
+    // // let canvas_width = top_right_ui_compute_node.size().x * main_camera_projection.scale / 2.;
+    // let canvas_height =
+    //     top_right_ui_compute_node.outlined_node_size().y * main_camera_projection.scale / 2.;
+    // // let canvas_height = top_right_ui_compute_node.size().y * main_camera_projection.scale / 2.;
 
-    if canvas_width <= 0.0
-        || canvas_height <= 0.0
-        || x_offset_extent <= 0.0
-        || y_offset_extent <= 0.0
-    {
+    // let unscaled_x_offset =
+    //     window.physical_width() as f32 - top_right_ui_compute_node.outlined_node_size().x; //- 12. - 16.;
+    // let x_offset_extent = unscaled_x_offset / 2. * top_right_ui_compute_node.inverse_scale_factor()
+    //     / main_camera_projection.scale;
+
+    // let unscaled_y_offset =
+    //     window.physical_height() as f32 - top_right_ui_compute_node.outlined_node_size().y; // - 12. - 16.;
+    // let y_offset_extent = unscaled_y_offset / 2. * top_right_ui_compute_node.inverse_scale_factor()
+    //     / main_camera_projection.scale;
+
+    // info!("Padding: {:?}", top_right_ui_compute_node.padding());
+    // info!(
+    //     "Outline width: {:?}",
+    //     top_right_ui_compute_node.outline_width()
+    // );
+    // info!(
+    //     "Content inset: {:?}",
+    //     top_right_ui_compute_node.content_inset()
+    // );
+
+    // info!(
+    //     "Difference: {:?}",
+    //     top_right_ui_compute_node.size() - top_right_ui_compute_node.outlined_node_size()
+    // );
+    // info!("CNode: {:#?}", top_right_ui_compute_node);
+
+    // info!("\n\n");
+
+    if canvas_width <= 0.0 || canvas_height <= 0.0 || x_offset <= 0.0 || y_offset <= 0.0 {
         info!("Computed canvas viewport data is unavailable");
         return;
     }
@@ -270,9 +298,10 @@ pub fn compute_canvas_viewport_data(
 
         if data.width == canvas_width
             && data.height == canvas_height
-            && data.translation.x == x_offset_extent
-            && data.translation.y == y_offset_extent
+            && data.translation.x == x_offset
+            && data.translation.y == y_offset
         {
+            // info!("Canvas viewport data has not changed");
             return;
         }
     }
@@ -281,7 +310,7 @@ pub fn compute_canvas_viewport_data(
         width: canvas_width,
         height: canvas_height,
         // WILO: I need to figure out how to make the offset equal this value.
-        translation: Vec3::new(x_offset_extent, y_offset_extent, 0.0),
+        translation: Vec3::new(x_offset, y_offset, 0.0),
         // translation: Vec3::new(126., 37.0, 0.0),
     };
 
@@ -289,15 +318,15 @@ pub fn compute_canvas_viewport_data(
     // 2560 * 0.75 = 1920
     // 1440 * 0.90 = 1296
 
-    info!("Computed canvas viewport data: {:#?}", data);
+    // 127x35
+    // info!("Computed canvas viewport data: {:#?}", data);
 
     if computed_data.iter().count() == 0 {
         commands.spawn(data);
-        return;
-    }
-
-    for mut computed in computed_data.iter_mut() {
-        *computed = data.clone();
+    } else {
+        for mut computed in computed_data.iter_mut() {
+            *computed = data.clone();
+        }
     }
 }
 
@@ -309,20 +338,24 @@ pub fn image_view_system(
     keyboard_input: Res<ButtonInput<KeyCode>>,
     app_data: Res<AppData>,
     images: Res<Assets<Image>>,
-    canvas_data: Query<&ComputedCanvasViewportData, Changed<ComputedCanvasViewportData>>,
     canvas_marker: Query<Entity, With<CanvasMarker>>,
     main_camera_transform: Query<&Transform, With<MainCamera>>,
+    canvas_data: Query<&ComputedCanvasViewportData, Changed<ComputedCanvasViewportData>>,
 ) {
     if canvas_data.iter().count() == 0 {
         return;
     }
 
-    if canvas_marker.iter().count() > 0 {
-        return;
-    }
-
     let canvas_data = match canvas_data.iter().next() {
-        Some(data) => data,
+        Some(data) => {
+            if let Some(marker) = canvas_marker.iter().next() {
+                // info!("Data: {:#?}", data);
+                // info!("Despawning canvas marker");
+                commands.entity(marker).despawn_recursive();
+            };
+
+            data
+        }
         None => {
             error!("Canvas data not found");
             return;
@@ -340,7 +373,7 @@ pub fn image_view_system(
     let transform = Transform::from_translation(canvas_data.translation);
 
     // WILO: This calculates size correctly for MAIN_CAMERA.
-    let size = Vec2::new(canvas_data.width, canvas_data.height);
+    let size = Vec2::new(canvas_data.width, canvas_data.height) / 2.;
 
     let debug_canvas = (
         Name::new("debug_canvas"),
@@ -349,8 +382,9 @@ pub fn image_view_system(
             &ShapeConfig {
                 transform,
                 hollow: true,
-                // thickness: 5.0,
+                thickness: 5.0,
                 render_layers: Some(MAIN_LAYER),
+                color: Color::from(INDIAN_RED),
                 ..ShapeConfig::default_2d()
             },
             size,
@@ -358,6 +392,7 @@ pub fn image_view_system(
         MAIN_LAYER,
     );
 
+    // info!("Canvas data: {:#?}", canvas_data);
     commands.spawn(debug_canvas);
 
     // let zoom_factor = app_data.config.settings.zoom_factor;
@@ -381,21 +416,21 @@ pub fn translate_image_system(
     mut query: Query<&mut Transform, With<SelectedImage>>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
-    config: Res<Config>,
+    app_data: Res<AppData>,
 ) {
     for mut transform in query.iter_mut() {
         let mut translation = transform.translation;
-        if keyboard_input.pressed(config.settings.key_map.pan_up) {
-            translation.y += config.settings.pan_factor.y * time.delta_secs();
+        if keyboard_input.pressed(app_data.config.settings.key_map.pan_up) {
+            translation.y += app_data.config.settings.pan_factor.y * time.delta_secs();
         }
-        if keyboard_input.pressed(config.settings.key_map.pan_down) {
-            translation.y -= config.settings.pan_factor.y * time.delta_secs();
+        if keyboard_input.pressed(app_data.config.settings.key_map.pan_down) {
+            translation.y -= app_data.config.settings.pan_factor.y * time.delta_secs();
         }
-        if keyboard_input.pressed(config.settings.key_map.pan_left) {
-            translation.x -= config.settings.pan_factor.x * time.delta_secs();
+        if keyboard_input.pressed(app_data.config.settings.key_map.pan_left) {
+            translation.x -= app_data.config.settings.pan_factor.x * time.delta_secs();
         }
-        if keyboard_input.pressed(config.settings.key_map.pan_right) {
-            translation.x += config.settings.pan_factor.x * time.delta_secs();
+        if keyboard_input.pressed(app_data.config.settings.key_map.pan_right) {
+            translation.x += app_data.config.settings.pan_factor.x * time.delta_secs();
         }
         transform.translation = translation;
     }
