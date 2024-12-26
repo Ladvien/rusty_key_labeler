@@ -24,7 +24,7 @@ pub struct ImageWithUninitializedScale;
 pub struct CanvasMarker;
 
 #[derive(Debug, Clone, Default, Component)]
-pub struct ComputedCanvasViewportData {
+pub struct ComputedViewport {
     pub width: f32,
     pub height: f32,
     pub translation: Vec3,

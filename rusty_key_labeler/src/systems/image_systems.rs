@@ -1,16 +1,18 @@
 use crate::{resources::AppData, settings::MAIN_LAYER, Config, MainCamera, SelectedImage};
-use crate::{CanvasMarker, ComputedCanvasViewportData, TopRightPanelUI};
+use crate::{CanvasMarker, ComputedViewport, TopRightPanelUI};
 use crate::{
     DebounceTimer, ImageLoading, ImageWithUninitializedScale,
     {CurrentFileNameLabelUpdateNeeded, UiLabelingIndexUpdateNeeded},
 };
 use bevy::color::palettes::css::INDIAN_RED;
-use bevy::prelude::*;
+use bevy::{app, prelude::*};
 use bevy_vector_shapes::{
     prelude::ShapeConfig,
     shapes::{RectangleBundle, ShapeBundle},
 };
 use yolo_io::ImageLabelPair;
+
+pub const MAGIC_NUMBER_UI: f32 = 10.0;
 
 #[warn(clippy::too_many_arguments)]
 pub fn next_and_previous_system(
@@ -204,19 +206,11 @@ pub fn start_image_load(
 
 pub fn compute_canvas_viewport_data(
     mut commands: Commands,
-    top_right_hands_panel: Query<&ComputedNode, With<TopRightPanelUI>>,
-    mut computed_data: Query<&mut ComputedCanvasViewportData>,
+    mut computed_data: Query<&mut ComputedViewport>,
     window: Query<&Window>,
     main_camera: Query<&OrthographicProjection, With<MainCamera>>,
+    app_data: Res<AppData>,
 ) {
-    let top_right_ui_compute_node = match top_right_hands_panel.iter().next() {
-        Some(cnode) => cnode,
-        None => {
-            error!("Top right panel not found");
-            return;
-        }
-    };
-
     let window = match window.iter().next() {
         Some(window) => window,
         None => {
@@ -236,52 +230,28 @@ pub fn compute_canvas_viewport_data(
     let window_width = window.physical_width() as f32;
     let window_height = window.physical_height() as f32;
 
-    let canvas_width = (window_width * 0.8).ceil() - 10.;
-    let canvas_height = (window_height * 0.9).ceil() - 10.;
+    let viewport_width_percentage = 1. - app_data.config.settings.ui_panel.size.width_percentage;
+    let viewport_height_percentage = 1. - app_data.config.settings.ui_panel.size.height_percentage;
 
-    let x_offset = (window_width - canvas_width) / 4.;
-    let y_offset = (window_height - canvas_height) / 4.;
+    let viewport_width = window_width * viewport_width_percentage;
+    let viewport_height = window_height * viewport_height_percentage;
 
-    let x_offset = x_offset - 5.;
-    let y_offset = y_offset - 5.;
+    let canvas_width = viewport_width - MAGIC_NUMBER_UI;
+    let canvas_height = viewport_height - MAGIC_NUMBER_UI;
 
-    // // WILO: This calculates size correctly for MAIN_CAMERA.
-    // let canvas_width =
-    //     top_right_ui_compute_node.outlined_node_size().x * main_camera_projection.scale / 2.;
-    // // let canvas_width = top_right_ui_compute_node.size().x * main_camera_projection.scale / 2.;
-    // let canvas_height =
-    //     top_right_ui_compute_node.outlined_node_size().y * main_camera_projection.scale / 2.;
-    // // let canvas_height = top_right_ui_compute_node.size().y * main_camera_projection.scale / 2.;
+    let x_offset = window_width - canvas_width - MAGIC_NUMBER_UI;
+    let y_offset = window_height - canvas_height - MAGIC_NUMBER_UI;
 
-    // let unscaled_x_offset =
-    //     window.physical_width() as f32 - top_right_ui_compute_node.outlined_node_size().x; //- 12. - 16.;
-    // let x_offset_extent = unscaled_x_offset / 2. * top_right_ui_compute_node.inverse_scale_factor()
-    //     / main_camera_projection.scale;
+    let scaled_viewport_width = canvas_width * main_camera_projection.scale;
+    let scaled_viewport_height = canvas_height * main_camera_projection.scale;
+    let scaled_x_offset = x_offset / 4. * main_camera_projection.scale;
+    let scaled_y_offset = y_offset / 4. * main_camera_projection.scale;
 
-    // let unscaled_y_offset =
-    //     window.physical_height() as f32 - top_right_ui_compute_node.outlined_node_size().y; // - 12. - 16.;
-    // let y_offset_extent = unscaled_y_offset / 2. * top_right_ui_compute_node.inverse_scale_factor()
-    //     / main_camera_projection.scale;
-
-    // info!("Padding: {:?}", top_right_ui_compute_node.padding());
-    // info!(
-    //     "Outline width: {:?}",
-    //     top_right_ui_compute_node.outline_width()
-    // );
-    // info!(
-    //     "Content inset: {:?}",
-    //     top_right_ui_compute_node.content_inset()
-    // );
-
-    // info!(
-    //     "Difference: {:?}",
-    //     top_right_ui_compute_node.size() - top_right_ui_compute_node.outlined_node_size()
-    // );
-    // info!("CNode: {:#?}", top_right_ui_compute_node);
-
-    // info!("\n\n");
-
-    if canvas_width <= 0.0 || canvas_height <= 0.0 || x_offset <= 0.0 || y_offset <= 0.0 {
+    if scaled_viewport_width <= 0.0
+        || scaled_viewport_height <= 0.0
+        || scaled_x_offset <= 0.0
+        || scaled_y_offset <= 0.0
+    {
         info!("Computed canvas viewport data is unavailable");
         return;
     }
@@ -296,22 +266,19 @@ pub fn compute_canvas_viewport_data(
             }
         };
 
-        if data.width == canvas_width
-            && data.height == canvas_height
-            && data.translation.x == x_offset
-            && data.translation.y == y_offset
+        if data.width == scaled_viewport_width
+            && data.height == scaled_viewport_height
+            && data.translation.x == scaled_x_offset
+            && data.translation.y == scaled_y_offset
         {
-            // info!("Canvas viewport data has not changed");
             return;
         }
     }
 
-    let data = ComputedCanvasViewportData {
-        width: canvas_width,
-        height: canvas_height,
-        // WILO: I need to figure out how to make the offset equal this value.
-        translation: Vec3::new(x_offset, y_offset, 0.0),
-        // translation: Vec3::new(126., 37.0, 0.0),
+    let data = ComputedViewport {
+        width: scaled_viewport_width,
+        height: scaled_viewport_height,
+        translation: Vec3::new(scaled_x_offset, scaled_y_offset, 0.0),
     };
 
     // 2560x1440
@@ -319,28 +286,22 @@ pub fn compute_canvas_viewport_data(
     // 1440 * 0.90 = 1296
 
     // 127x35
-    // info!("Computed canvas viewport data: {:#?}", data);
+    info!("Computed canvas viewport data: {:#?}", data);
 
     if computed_data.iter().count() == 0 {
         commands.spawn(data);
     } else {
         for mut computed in computed_data.iter_mut() {
+            info!("Updating computed canvas viewport data");
             *computed = data.clone();
         }
     }
 }
 
-pub fn image_view_system(
+pub fn debug_viewport(
     mut commands: Commands,
-    window: Query<&Window>,
-    mut selected_image: Query<(Entity, &mut Sprite, &Transform), With<SelectedImage>>,
-    mut main_camera: Query<(&Camera, &mut OrthographicProjection), With<MainCamera>>,
-    keyboard_input: Res<ButtonInput<KeyCode>>,
-    app_data: Res<AppData>,
-    images: Res<Assets<Image>>,
     canvas_marker: Query<Entity, With<CanvasMarker>>,
-    main_camera_transform: Query<&Transform, With<MainCamera>>,
-    canvas_data: Query<&ComputedCanvasViewportData, Changed<ComputedCanvasViewportData>>,
+    canvas_data: Query<&ComputedViewport, Changed<ComputedViewport>>,
 ) {
     if canvas_data.iter().count() == 0 {
         return;
@@ -349,8 +310,6 @@ pub fn image_view_system(
     let canvas_data = match canvas_data.iter().next() {
         Some(data) => {
             if let Some(marker) = canvas_marker.iter().next() {
-                // info!("Data: {:#?}", data);
-                // info!("Despawning canvas marker");
                 commands.entity(marker).despawn_recursive();
             };
 
@@ -362,17 +321,7 @@ pub fn image_view_system(
         }
     };
 
-    let (camera, projection) = match main_camera.iter_mut().next() {
-        Some((camera, projection)) => (camera, projection),
-        None => {
-            error!("Main camera not found");
-            return;
-        }
-    };
-
     let transform = Transform::from_translation(canvas_data.translation);
-
-    // WILO: This calculates size correctly for MAIN_CAMERA.
     let size = Vec2::new(canvas_data.width, canvas_data.height) / 2.;
 
     let debug_canvas = (
@@ -392,24 +341,7 @@ pub fn image_view_system(
         MAIN_LAYER,
     );
 
-    // info!("Canvas data: {:#?}", canvas_data);
     commands.spawn(debug_canvas);
-
-    // let zoom_factor = app_data.config.settings.zoom_factor;
-    // if keyboard_input.pressed(app_data.config.settings.key_map.zoom_in) {
-    //     projection.scale *= zoom_factor;
-    // }
-    // if keyboard_input.pressed(app_data.config.settings.key_map.zoom_out) {
-    //     // If image width extent is greater than the projection width,
-    //     // then we can zoom in.
-    //     projection.scale /= zoom_factor;
-    // }
-
-    // commands.spawn(t);
-    // if keyboard_input.pressed(app_data.config.settings.key_map.pan_up) {}
-    // if keyboard_input.pressed(app_data.config.settings.key_map.pan_down) {}
-    // if keyboard_input.pressed(app_data.config.settings.key_map.pan_left) {}
-    // if keyboard_input.pressed(app_data.config.settings.key_map.pan_right) {}
 }
 
 pub fn translate_image_system(
@@ -433,5 +365,23 @@ pub fn translate_image_system(
             translation.x += app_data.config.settings.pan_factor.x * time.delta_secs();
         }
         transform.translation = translation;
+    }
+}
+
+pub fn zoom_image_system(
+    mut query: Query<&mut OrthographicProjection, With<MainCamera>>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
+    app_data: Res<AppData>,
+) {
+    for mut projection in query.iter_mut() {
+        let mut scale = projection.scale;
+        let zoom_factor = app_data.config.settings.zoom_factor;
+        if keyboard_input.pressed(app_data.config.settings.key_map.zoom_in) {
+            scale *= zoom_factor;
+        }
+        if keyboard_input.pressed(app_data.config.settings.key_map.zoom_out) {
+            scale /= zoom_factor;
+        }
+        projection.scale = scale;
     }
 }

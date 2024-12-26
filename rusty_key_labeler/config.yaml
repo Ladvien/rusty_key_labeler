@@ -28,8 +28,8 @@ output_path: output/
 settings:
   zoom_factor: 1.1
   pan_factor:
-    x: 30.0
-    y: 30.0
+    x: 530.0
+    y: 530.0
   bounding_boxes:
     thickness: 5
     corner_radius: 5.0
@@ -53,14 +53,14 @@ settings:
       x: 0
       y: 0
     size:
-      width: 900
-      height: 100
+      width_percentage: 0.2
+      height_percentage: 0.1
 
   key_map:
     zoom_in: 'KeyE'
     zoom_out: 'KeyQ'
-    pan_up: 'KeyW'
-    pan_down: 'KeyS'
+    pan_up: 'KeyS'
+    pan_down: 'KeyW'
     pan_left: 'KeyD'
     pan_right: 'KeyA'
     # save: 13

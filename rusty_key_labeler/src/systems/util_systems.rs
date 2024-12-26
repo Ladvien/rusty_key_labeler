@@ -1,6 +1,6 @@
 use crate::{
-    ComputedCanvasViewportData, DebounceTimer, ImageLoading, ImageReady, MainCamera,
-    TopRightPanelUI, UiCamera,
+    ComputedViewport, DebounceTimer, ImageLoading, ImageReady, MainCamera, TopRightPanelUI,
+    UiCamera,
 };
 use bevy::{asset::LoadState, prelude::*};
 

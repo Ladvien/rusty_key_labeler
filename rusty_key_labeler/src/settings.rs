@@ -40,8 +40,8 @@ pub struct TopLeftPosition {
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct UiPanelSize {
-    pub width: f32,
-    pub height: f32,
+    pub width_percentage: f32,
+    pub height_percentage: f32,
 }
 
 #[derive(Debug, PartialEq, Clone, Serialize, Resource)]
@@ -105,8 +105,8 @@ impl<'de> Deserialize<'de> for UiPanelSettings {
 
         let ui_panel_settings = UiPanelSettings {
             size: helper.size.unwrap_or(UiPanelSize {
-                width: 0.2,
-                height: 0.15,
+                width_percentage: 0.2,
+                height_percentage: 0.2,
             }),
             colors: helper.colors,
             top_left_position: helper
@@ -158,8 +158,8 @@ impl Default for Settings {
             bounding_boxes: BoundingBoxSettings::default(),
             ui_panel: UiPanelSettings {
                 size: UiPanelSize {
-                    width: 0.2,
-                    height: 0.15,
+                    width_percentage: 0.2,
+                    height_percentage: 0.2,
                 },
                 colors: UiColors {
                     background: UI_BACKGROUND_COLOR,
@@ -237,8 +237,8 @@ mod tests {
                     },
                     top_left_position: TopLeftPosition { x: 0, y: 0 },
                     size: UiPanelSize {
-                        width: 0.2,
-                        height: 0.15
+                        width_percentage: 0.2,
+                        height_percentage: 0.2
                     },
                     font_size: 16.0,
                     font_path: "RobotoMono-Regular.ttf".to_string()

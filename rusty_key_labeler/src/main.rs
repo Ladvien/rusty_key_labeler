@@ -79,10 +79,10 @@ fn main() {
                 update_current_file_name_label,
                 debounce_timer_system,
                 image_state_system,
-                image_view_system,
+                debug_viewport,
                 translate_image_system,
                 compute_canvas_viewport_data,
-                // center_image_on_load,
+                zoom_image_system, // center_image_on_load,
             )
                 .chain(),
         )
