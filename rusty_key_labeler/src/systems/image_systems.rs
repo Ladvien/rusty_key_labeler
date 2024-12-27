@@ -1,10 +1,11 @@
 use crate::{resources::AppData, settings::MAIN_LAYER, Config, MainCamera, SelectedImage};
-use crate::{CanvasMarker, ComputedViewport, TopRightPanelUI};
+use crate::{CanvasMarker, ComputedViewport, ImageNotYetCentered, TopRightPanelUI};
 use crate::{
-    DebounceTimer, ImageLoading, ImageWithUninitializedScale,
+    DebounceTimer, ImageLoading, ImageNotYetScaled,
     {CurrentFileNameLabelUpdateNeeded, UiLabelingIndexUpdateNeeded},
 };
-use bevy::color::palettes::css::INDIAN_RED;
+use bevy::color::palettes::css::{INDIAN_RED, LIMEGREEN};
+use bevy::render::view;
 use bevy::{app, prelude::*};
 use bevy_vector_shapes::{
     prelude::ShapeConfig,
@@ -47,7 +48,7 @@ pub fn next_and_previous_system(
         app_data.index = 0;
     }
 
-    let mut camera = match main_camera.iter_mut().next() {
+    let mut projection = match main_camera.iter_mut().next() {
         Some(camera) => camera,
         None => {
             error!("Main camera not found");
@@ -57,7 +58,7 @@ pub fn next_and_previous_system(
 
     // We need to reset the camera scale to prepare
     // for centering the next image.
-    camera.scale = 1.0;
+    projection.scale = 1.0;
 
     let total_images = valid_pairs.len() as isize - 1;
     start_image_load(
@@ -75,79 +76,133 @@ pub fn next_and_previous_system(
     }
 }
 
-// pub fn center_image_on_load(
-//     mut commands: Commands,
-//     canvas_data: Query<&ComputedCanvasViewportData>,
-//     mut uninitialized_images: Query<
-//         (Entity, &Sprite, &mut Transform),
-//         With<ImageWithUninitializedScale>,
-//     >,
-//     mut main_camera: Query<
-//         (&mut OrthographicProjection, &mut Transform),
-//         (With<MainCamera>, Without<ImageWithUninitializedScale>),
-//     >,
-//     images: Res<Assets<Image>>,
-// ) {
-//     if canvas_data.iter().count() == 0 {
-//         return;
-//     }
+pub fn center_image_on_load(
+    mut commands: Commands,
+    computed_viewport: Query<&ComputedViewport, Changed<ComputedViewport>>,
+    mut uncentered_images: Query<(Entity, &Sprite, &mut Transform), With<ImageNotYetCentered>>,
+) {
+    if uncentered_images.iter().count() == 0 {
+        return;
+    }
 
-//     let canvas_data = match canvas_data.iter().next() {
-//         Some(data) => data,
-//         None => {
-//             error!("Canvas data not found");
-//             return;
-//         }
-//     };
+    if computed_viewport.iter().count() == 0 {
+        return;
+    }
 
-//     let (entity, sprite, mut transform) = match uninitialized_images.iter_mut().next() {
-//         Some((entity, sprite, transform)) => (entity, sprite, transform),
-//         None => {
-//             return;
-//         }
-//     };
+    let viewport = match computed_viewport.iter().next() {
+        Some(data) => data,
+        None => {
+            error!("Canvas data not found");
+            return;
+        }
+    };
 
-//     transform.translation = canvas_data.translation;
+    let (entity, sprite, mut transform) = match uncentered_images.iter_mut().next() {
+        Some((entity, sprite, transform)) => (entity, sprite, transform),
+        None => {
+            return;
+        }
+    };
 
-//     info!("Image path: {:?}", sprite.image.path());
-//     let image_size = match images.get(&sprite.image) {
-//         Some(image) => Vec2::new(image.width() as f32, image.height() as f32),
-//         None => {
-//             error!("Image not found");
-//             return;
-//         }
-//     };
+    info!("Centering image: {:?}", sprite.image.path());
+    transform.translation = viewport.translation;
 
-//     // Adjust camera to fit image.
-//     let (mut projection, mut camera_transform) = match main_camera.iter_mut().next() {
-//         Some((projection, camera_transform)) => (projection, camera_transform),
-//         None => {
-//             error!("Main camera not found");
-//             return;
-//         }
-//     };
+    commands.entity(entity).remove::<ImageNotYetCentered>();
+}
 
-//     // camera_transform.translation = canvas_data.translation;
+pub fn scale_image_on_load(
+    mut commands: Commands,
+    computed_viewport: Query<&ComputedViewport>,
+    window: Query<&Window>,
+    mut uninitialized_images: Query<(Entity, &Sprite, &mut Transform), With<ImageNotYetScaled>>,
+    mut main_camera: Query<
+        &mut OrthographicProjection,
+        (With<MainCamera>, Without<ImageNotYetScaled>),
+    >,
+    images: Res<Assets<Image>>,
+) {
+    if computed_viewport.iter().count() == 0 {
+        return;
+    }
 
-//     // let height_scale_factor = image_size.y / (projection.area.height() - canvas_data.y_offset / 2.);
-//     // let width_scale_factor = image_size.x / (projection.area.width() - canvas_data.x_offset / 2.);
+    let viewport = match computed_viewport.iter().next() {
+        Some(data) => data,
+        None => {
+            error!("Canvas data not found");
+            return;
+        }
+    };
 
-//     let height_scale_factor = image_size.y / canvas_data.height;
-//     let width_scale_factor = image_size.x / canvas_data.width;
+    let (entity, sprite, mut transform) = match uninitialized_images.iter_mut().next() {
+        Some((entity, sprite, transform)) => (entity, sprite, transform),
+        None => {
+            return;
+        }
+    };
 
-//     let mut scale_factor = 1.0;
-//     if height_scale_factor > width_scale_factor {
-//         scale_factor = height_scale_factor;
-//     } else {
-//         scale_factor = width_scale_factor;
-//     }
+    let window = match window.iter().next() {
+        Some(window) => window,
+        None => {
+            error!("Window not found");
+            return;
+        }
+    };
 
-//     projection.scale = scale_factor;
+    transform.translation = viewport.translation;
 
-//     commands
-//         .entity(entity)
-//         .remove::<ImageWithUninitializedScale>();
-// }
+    info!("Image path: {:?}", sprite.image.path());
+    let image_size = match images.get(&sprite.image) {
+        Some(image) => Vec2::new(image.width() as f32 * 2., image.height() as f32 * 2.),
+        None => {
+            error!("Image not found");
+            return;
+        }
+    };
+
+    // Adjust camera to fit image.
+    let mut projection = match main_camera.iter_mut().next() {
+        Some(projection) => projection,
+        None => {
+            error!("Main camera not found");
+            return;
+        }
+    };
+
+    // WILO: I've got the viewport data, how do I center
+    // the image in the viewport now?
+
+    info!("image size: {:#?}", image_size);
+    info!("viewport: {:#?}", viewport);
+    info!("projection.scale: {:#?}", projection.scale);
+
+    // image_size.x = 2560
+    // image_size.y = 1440
+    // viewport.width = 1920
+    // viewport.height = 1080
+    //
+    // viewport_size / image_size = scale_factor
+    // 1920 / 2560 = 0.75
+    let viewport_height_padding = viewport.height - MAGIC_NUMBER_UI;
+    let viewport_width_padding = viewport.width - MAGIC_NUMBER_UI;
+    let height_scale_factor = image_size.y / viewport_height_padding;
+    let width_scale_factor = image_size.x / viewport_width_padding;
+
+    info!("height scale factor: {}", height_scale_factor);
+    info!("width scale factor: {}", width_scale_factor);
+
+    projection.scale = if height_scale_factor > width_scale_factor {
+        info!("height scale factor");
+        height_scale_factor
+    } else {
+        info!("width scale factor");
+        width_scale_factor
+    };
+
+    info!("projection: {:#?}", projection.scale);
+
+    commands.entity(entity).remove::<ImageNotYetScaled>();
+    commands.entity(entity).insert(ImageNotYetCentered);
+}
 
 pub fn start_image_load(
     commands: &mut Commands,
@@ -157,7 +212,7 @@ pub fn start_image_load(
     delay_between_images: f32,
     valid_pairs: Vec<ImageLabelPair>,
 ) {
-    info!("Loading image at index: {}", index);
+    debug!("Loading image at index: {}", index);
 
     // Load next image
     let next_image_path = match valid_pairs[index as usize].image_path.clone() {
@@ -169,7 +224,7 @@ pub fn start_image_load(
     };
     let next_image = next_image_path.as_path().to_string_lossy().into_owned();
 
-    info!("Next image: {}", next_image);
+    debug!("Next image: {}", next_image);
 
     // Add image to the scene
     let next_image_handle = asset_server.load::<Image>(next_image.clone());
@@ -181,7 +236,7 @@ pub fn start_image_load(
         },
         SelectedImage,
         ImageLoading(next_image_handle),
-        ImageWithUninitializedScale,
+        ImageNotYetScaled,
         Transform::from_translation(Vec3::new(0., 0., 0.)),
         MAIN_LAYER,
         DebounceTimer {
@@ -200,7 +255,8 @@ pub fn start_image_load(
         .to_string_lossy()
         .into_owned();
 
-    info!("Current file name: {}", current_file_name);
+    debug!("Current file name: {}", current_file_name);
+
     commands.spawn(CurrentFileNameLabelUpdateNeeded(current_file_name));
 }
 
@@ -307,6 +363,11 @@ pub fn debug_viewport(
         return;
     }
 
+    // Remove old debug canvas data
+    for entity in canvas_marker.iter() {
+        commands.entity(entity).despawn_recursive();
+    }
+
     let canvas_data = match canvas_data.iter().next() {
         Some(data) => {
             if let Some(marker) = canvas_marker.iter().next() {
@@ -324,7 +385,7 @@ pub fn debug_viewport(
     let transform = Transform::from_translation(canvas_data.translation);
     let size = Vec2::new(canvas_data.width, canvas_data.height) / 2.;
 
-    let debug_canvas = (
+    let debug_canvas_border = (
         Name::new("debug_canvas"),
         CanvasMarker,
         ShapeBundle::rect(
@@ -341,7 +402,24 @@ pub fn debug_viewport(
         MAIN_LAYER,
     );
 
-    commands.spawn(debug_canvas);
+    commands.spawn(debug_canvas_border);
+
+    let debug_canvas_center = (
+        Name::new("debug_canvas_center"),
+        CanvasMarker,
+        ShapeBundle::rect(
+            &ShapeConfig {
+                transform,
+                render_layers: Some(MAIN_LAYER),
+                color: Color::from(LIMEGREEN),
+                ..ShapeConfig::default_2d()
+            },
+            Vec2::new(20.0, 20.0),
+        ),
+        MAIN_LAYER,
+    );
+
+    commands.spawn(debug_canvas_center);
 }
 
 pub fn translate_image_system(

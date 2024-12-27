@@ -26,7 +26,7 @@ project_config:
 output_path: output/
 
 settings:
-  zoom_factor: 1.1
+  zoom_factor: 1.075
   pan_factor:
     x: 530.0
     y: 530.0

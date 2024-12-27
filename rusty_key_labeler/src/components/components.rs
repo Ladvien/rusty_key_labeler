@@ -18,7 +18,10 @@ pub struct DebounceTimer {
 }
 
 #[derive(Debug, Clone, Component)]
-pub struct ImageWithUninitializedScale;
+pub struct ImageNotYetScaled;
+
+#[derive(Debug, Clone, Component)]
+pub struct ImageNotYetCentered;
 
 #[derive(Debug, Clone, Default, Component)]
 pub struct CanvasMarker;

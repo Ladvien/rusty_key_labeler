@@ -26,7 +26,7 @@ pub fn bounding_boxes_system(
         return;
     }
 
-    info!("Painting bounding boxes");
+    debug!("Painting bounding boxes");
 
     let pair = match app_data.yolo_project.pair_at_index(app_data.index) {
         Some(pair) => pair,
@@ -55,7 +55,7 @@ pub fn bounding_boxes_system(
         }
     };
 
-    info!("Selected image: {:?}", sprite.image.id());
+    debug!("Selected image: {:?}", sprite.image.id());
 
     match images.get_mut(&sprite.image) {
         Some(image) => {
@@ -69,7 +69,7 @@ pub fn bounding_boxes_system(
 
             for (index, entry) in yolo_file.entries.iter().enumerate() {
                 //
-                info!("Adding bounding box: {}", index);
+                debug!("Adding bounding box: {}", index);
                 let bounding_box = bb_painter.get_box(index, entry, image_size);
                 let child_id = commands.spawn(bounding_box).id();
                 children.push(child_id);
@@ -90,7 +90,7 @@ pub fn bounding_boxes_system(
 
             // Add bounding box references to UI
             if let Some(left_panel_eid) = app_data.left_panel_eid {
-                info!("Updating left panel");
+                debug!("Updating left panel");
                 commands.spawn(VStackUpdatedItems {
                     items: ui_items.clone(),
                     vstack_eid: left_panel_eid,
@@ -103,7 +103,7 @@ pub fn bounding_boxes_system(
         }
     };
     if !children.is_empty() {
-        info!("Adding children to selected image");
+        debug!("Adding children to selected image");
         commands.entity(selected_image_eid).add_children(&children);
     }
 }
