@@ -12,7 +12,10 @@ pub fn compute_canvas_viewport(
     mut commands: Commands,
     mut computed_data: Query<&mut ComputedViewport>,
     window: Query<&Window>,
-    main_camera: Query<&OrthographicProjection, With<MainCamera>>,
+    mut main_camera: Query<
+        (&mut Camera, &mut Transform, &OrthographicProjection),
+        With<MainCamera>,
+    >,
     app_data: Res<AppData>,
 ) {
     let window = match window.iter().next() {
@@ -23,13 +26,16 @@ pub fn compute_canvas_viewport(
         }
     };
 
-    let main_camera_projection = match main_camera.iter().next() {
-        Some(projection) => projection,
-        None => {
-            error!("Main camera not found");
-            return;
-        }
-    };
+    let (mut camera, mut main_camera_transform, main_camera_projection) =
+        match main_camera.iter_mut().next() {
+            Some((camera, main_camera_transform, main_camera_projection)) => {
+                (camera, main_camera_transform, main_camera_projection)
+            }
+            None => {
+                error!("Main camera not found");
+                return;
+            }
+        };
 
     let window_width = window.physical_width() as f32;
     let window_height = window.physical_height() as f32;
@@ -40,25 +46,31 @@ pub fn compute_canvas_viewport(
     let viewport_width = window_width * viewport_width_percentage;
     let viewport_height = window_height * viewport_height_percentage;
 
-    let canvas_width = viewport_width - MAGIC_NUMBER_UI;
-    let canvas_height = viewport_height - MAGIC_NUMBER_UI;
+    let x_offset = window_width - viewport_width - MAGIC_NUMBER_UI;
+    let y_offset = window_height - viewport_height - MAGIC_NUMBER_UI;
 
-    let x_offset = window_width - canvas_width - MAGIC_NUMBER_UI;
-    let y_offset = window_height - canvas_height - MAGIC_NUMBER_UI;
+    // info!("x_offset: {}", x_offset);
+    // info!("y_offset: {}", y_offset);
 
-    let scaled_viewport_width = canvas_width * main_camera_projection.scale;
-    let scaled_viewport_height = canvas_height * main_camera_projection.scale;
+    let scaled_viewport_width = viewport_width * main_camera_projection.scale;
+    let scaled_viewport_height = viewport_height * main_camera_projection.scale;
     let scaled_x_offset = x_offset / 4. * main_camera_projection.scale;
     let scaled_y_offset = y_offset / 4. * main_camera_projection.scale;
 
-    if scaled_viewport_width <= 0.0
-        || scaled_viewport_height <= 0.0
-        || scaled_x_offset <= 0.0
-        || scaled_y_offset <= 0.0
-    {
-        info!("Computed canvas viewport data is unavailable");
-        return;
-    }
+    // let scaled_x_offset = -100.0 * main_camera_projection.scale;
+    // let scaled_y_offset = 10.0; // * main_camera_projection.scale;
+
+    info!("scaled_x_offset: {}", scaled_x_offset);
+    info!("scaled_y_offset: {}", scaled_y_offset);
+
+    // if scaled_viewport_width <= 0.0
+    //     || scaled_viewport_height <= 0.0
+    //     || scaled_x_offset <= 0.0
+    //     || scaled_y_offset <= 0.0
+    // {
+    //     info!("Computed canvas viewport data is unavailable");
+    //     return;
+    // }
 
     // If the dimensions haven't changed, then we don't need to update the data.
     if computed_data.iter().count() > 0 {
@@ -79,6 +91,7 @@ pub fn compute_canvas_viewport(
         }
     }
 
+    main_camera_transform.translation = Vec3::new(scaled_x_offset, scaled_y_offset, 0.0);
     let data = ComputedViewport {
         width: scaled_viewport_width,
         height: scaled_viewport_height,
@@ -90,7 +103,7 @@ pub fn compute_canvas_viewport(
     // 1440 * 0.90 = 1296
 
     // 127x35
-    debug!("Computed canvas viewport data: {:#?}", data);
+    info!("Computed canvas viewport data: {:#?}", data);
 
     if computed_data.iter().count() == 0 {
         commands.spawn(data);
