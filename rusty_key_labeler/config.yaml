@@ -1,6 +1,7 @@
 
 project_config:
   source_paths:
+    # images: /Users/ladvien/datasets/tmp_shr/images/sprite_sheets/sources/spriters
     images: /Users/ladvien/rusty_key_labeler/rusty_key_labeler/test_data/input
     labels: /Users/ladvien/rusty_key_labeler/rusty_key_labeler/test_data/input
   type: yolo
@@ -31,7 +32,7 @@ settings:
     x: 530.0
     y: 530.0
   bounding_boxes:
-    thickness: 5
+    thickness: 2
     corner_radius: 5.0
     class_color_map:
       # RGBA Color
@@ -63,6 +64,8 @@ settings:
     pan_down: 'KeyW'
     pan_left: 'KeyD'
     pan_right: 'KeyA'
+
+    change_selection: 'Tab'
     # save: 13
     # quit: 27
     # next: 32

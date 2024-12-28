@@ -68,14 +68,18 @@ impl<'de> Deserialize<'de> for BoundingBoxSettings {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
-pub struct BoundingBoxEntry {
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize, Component)]
+pub struct BoundingBox {
+    pub index: usize,
     pub class: String,
     pub x: f32,
     pub y: f32,
     pub width: f32,
     pub height: f32,
 }
+
+#[derive(Debug, PartialEq, Clone, Component)]
+pub struct SelectedBoundingBox;
 
 #[derive(Debug, PartialEq, Clone, Resource)]
 pub struct BoundingBoxPainter {
@@ -84,7 +88,7 @@ pub struct BoundingBoxPainter {
 }
 
 #[derive(Debug, PartialEq, Clone, Component)]
-pub struct BoundingBoxMarker;
+pub struct ContainsBoundingBoxes;
 
 impl BoundingBoxPainter {
     pub fn new(
@@ -110,7 +114,7 @@ impl BoundingBoxPainter {
     ) -> (
         Name,
         ShapeBundle<RectangleComponent>,
-        BoundingBoxMarker,
+        BoundingBox,
         RenderLayers,
     ) {
         let (scaled_x_center, scaled_y_center, scaled_width, scaled_height) = scale_dimensions(
@@ -141,7 +145,14 @@ impl BoundingBoxPainter {
                 },
                 size,
             ),
-            BoundingBoxMarker,
+            BoundingBox {
+                index,
+                class: self.class_map[&entry.class].clone(),
+                x: scaled_x_center,
+                y: scaled_y_center,
+                width: scaled_width,
+                height: scaled_height,
+            },
             MAIN_LAYER,
         )
     }

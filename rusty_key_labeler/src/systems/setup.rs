@@ -17,12 +17,12 @@ pub fn setup(
 
     let first_image = selected_pair.clone().image_path.unwrap();
     let first_image_path = first_image.as_path().to_string_lossy().into_owned();
-    let image_handle = asset_server.load::<Image>(first_image_path.clone());
+    let _ = asset_server.load::<Image>(first_image_path.clone());
 
     // Load camera
     commands.spawn((
         Name::new("main_camera"),
-        Camera2d::default(),
+        Camera2d,
         Transform::from_xyz(0., 0., 16.).looking_at(Vec3::ZERO, Vec3::Y),
         // BloomSettings {
         //     intensity: 0.1,
@@ -55,7 +55,7 @@ pub fn ui_setup(
 
     commands.spawn((
         Name::new("ui_camera"),
-        Camera2d::default(),
+        Camera2d,
         Camera {
             // Render the UI on top of everything else.
             order: 1,

@@ -74,17 +74,17 @@ fn main() {
             Update,
             (
                 next_and_previous_system,
-                bounding_boxes_system,
+                load_bounding_boxes,
                 update_labeling_index,
                 update_current_file_name_label,
                 debounce_timer_system,
                 image_state_system,
                 translate_image_system,
                 zoom_image_system,
-                compute_canvas_viewport_data,
-                // debug_viewport,
-                scale_image_on_load,
-                center_image_on_load,
+                compute_canvas_viewport,
+                fit_to_viewport,
+                change_bounding_box_selection,
+                debug_viewport,
             )
                 .chain(),
         )

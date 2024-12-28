@@ -4,7 +4,7 @@ use bevy::prelude::*;
 pub struct ImageLoading(pub Handle<Image>);
 
 #[derive(Debug, Clone, Component)]
-pub struct ImageReady(pub Handle<Image>);
+pub struct ImageReady;
 
 #[derive(Debug, Clone, Component)]
 pub struct SelectedImage;
@@ -18,10 +18,10 @@ pub struct DebounceTimer {
 }
 
 #[derive(Debug, Clone, Component)]
-pub struct ImageNotYetScaled;
-
-#[derive(Debug, Clone, Component)]
-pub struct ImageNotYetCentered;
+pub struct FocusViewport {
+    pub width: f32,
+    pub height: f32,
+}
 
 #[derive(Debug, Clone, Default, Component)]
 pub struct CanvasMarker;

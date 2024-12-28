@@ -1,13 +1,14 @@
 use bevy::prelude::*;
 use bevy_ui_views::VStackUpdatedItems;
+use itertools::Itertools;
 
 use crate::{
-    bounding_boxes::{BoundingBoxMarker, BoundingBoxPainter},
+    bounding_boxes::{BoundingBoxPainter, ContainsBoundingBoxes},
     resources::AppData,
     ImageReady, SelectedImage, Ui,
 };
 
-pub fn bounding_boxes_system(
+pub fn load_bounding_boxes(
     mut commands: Commands,
     mut images: ResMut<Assets<Image>>,
     query: Query<
@@ -15,7 +16,7 @@ pub fn bounding_boxes_system(
         (
             With<SelectedImage>,
             With<ImageReady>,
-            Without<BoundingBoxMarker>,
+            Without<ContainsBoundingBoxes>,
         ),
     >,
     bb_painter: Res<BoundingBoxPainter>,
@@ -63,11 +64,21 @@ pub fn bounding_boxes_system(
             // TODO: What happens if this fails continually?
             commands
                 .entity(selected_image_eid)
-                .try_insert(BoundingBoxMarker);
+                .try_insert(ContainsBoundingBoxes);
 
             let image_size = Vec2::new(image.width() as f32, image.height() as f32);
 
-            for (index, entry) in yolo_file.entries.iter().enumerate() {
+            for (index, entry) in yolo_file
+                .entries
+                .iter()
+                .enumerate()
+                .sorted_by_key(|(_, entry)| {
+                    // Sort by area. This allows for consistent top-right
+                    // to bottom-left ordering.
+                    (entry.x_center * 1000.0) as u32 + (entry.y_center * 1000.0) as u32
+                })
+                .rev()
+            {
                 //
                 debug!("Adding bounding box: {}", index);
                 let bounding_box = bb_painter.get_box(index, entry, image_size);

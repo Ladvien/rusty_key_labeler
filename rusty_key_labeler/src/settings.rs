@@ -24,6 +24,7 @@ pub struct KeyMap {
     pub pan_down: KeyCode,
     pub pan_left: KeyCode,
     pub pan_right: KeyCode,
+    pub change_selection: KeyCode,
 }
 
 #[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize)]
@@ -139,6 +140,7 @@ impl Default for KeyMap {
             pan_down: KeyCode::KeyS,
             pan_left: KeyCode::KeyA,
             pan_right: KeyCode::KeyD,
+            change_selection: KeyCode::Tab,
         }
     }
 }
@@ -207,7 +209,8 @@ mod tests {
                 pan_up: KeyCode::KeyW,
                 pan_down: KeyCode::KeyS,
                 pan_left: KeyCode::KeyA,
-                pan_right: KeyCode::KeyD
+                pan_right: KeyCode::KeyD,
+                change_selection: KeyCode::Tab,
             }
         );
     }

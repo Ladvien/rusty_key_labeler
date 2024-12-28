@@ -1,24 +1,10 @@
 use bevy::prelude::Component;
-use bevy::render::{
-    render_asset::RenderAssetUsages,
-    render_resource::{Extent3d, TextureDimension, TextureFormat},
-};
-use bevy::{color::palettes::css::*, prelude::*};
-use bevy_ui_views::{VStack, VStackContainerItem};
+use bevy::prelude::*;
 
-use crate::{
-    settings::{UiColors, UI_LAYER},
-    AppData,
-};
+use crate::settings::UiColors;
 
 #[derive(Debug, Clone, Component)]
 pub struct TopRightPanelUI;
-
-#[derive(Debug, Clone, Default, Component)]
-pub struct CanvasPosition {
-    pub x: f32,
-    pub y: f32,
-}
 
 #[derive(Debug, Clone, Component)]
 pub struct UiCamera;
@@ -35,9 +21,6 @@ pub struct UIBottomPanel;
 
 #[derive(Debug, Clone, Component)]
 pub struct UITopPanel;
-
-#[derive(Debug, Clone, Component)]
-pub struct UiLabelDataChanged;
 
 // UI Part Markers
 #[derive(Debug, Clone, Component)]

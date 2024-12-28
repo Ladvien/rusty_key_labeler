@@ -7,10 +7,10 @@ use bevy_ui_views::{VStack, VStackContainerItem};
 
 use crate::{
     settings::{UiColors, UI_LAYER},
-    AppData, CurrentFileNameLabel, CurrentFileNameLabelUpdateNeeded, UIBottomPanel, UILeftPanel,
-    UITopPanel, UiBasePanel, UiLabelingIndex, UiLabelingIndexUpdateNeeded,
+    CurrentFileNameLabel, CurrentFileNameLabelUpdateNeeded, UIBottomPanel, UILeftPanel, UITopPanel,
+    UiBasePanel, UiLabelingIndex, UiLabelingIndexUpdateNeeded,
 };
-use crate::{TopRightPanelUI, Ui, UiCamera};
+use crate::{TopRightPanelUI, Ui};
 
 pub const UI_Z_INDEX: f32 = 99.0;
 pub const PADDING: f32 = 5.0;
