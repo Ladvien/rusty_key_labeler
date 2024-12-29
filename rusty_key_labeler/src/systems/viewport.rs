@@ -1,4 +1,4 @@
-use crate::{resources::AppData, settings::MAIN_LAYER, MainCamera};
+use crate::{resources::AppData, MainCamera};
 use crate::{CanvasMarker, ComputedViewport, FocusViewport};
 use bevy::color::palettes::css::{INDIAN_RED, LIMEGREEN};
 use bevy::prelude::*;
@@ -91,7 +91,6 @@ pub fn compute_canvas_viewport(
         }
     }
 
-    main_camera_transform.translation = Vec3::new(scaled_x_offset, scaled_y_offset, 0.0);
     let data = ComputedViewport {
         width: scaled_viewport_width,
         height: scaled_viewport_height,
@@ -232,13 +231,11 @@ pub fn debug_viewport(
                 transform,
                 hollow: true,
                 thickness: 5.0,
-                render_layers: Some(MAIN_LAYER),
                 color: Color::from(INDIAN_RED),
                 ..ShapeConfig::default_2d()
             },
             size,
         ),
-        MAIN_LAYER,
     );
 
     commands.spawn(debug_canvas_border);
@@ -249,13 +246,11 @@ pub fn debug_viewport(
         ShapeBundle::rect(
             &ShapeConfig {
                 transform,
-                render_layers: Some(MAIN_LAYER),
                 color: Color::from(LIMEGREEN),
                 ..ShapeConfig::default_2d()
             },
             Vec2::new(20.0, 20.0),
         ),
-        MAIN_LAYER,
     );
 
     commands.spawn(debug_canvas_center);

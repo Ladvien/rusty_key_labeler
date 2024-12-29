@@ -14,10 +14,7 @@ use hashbrown::HashMap;
 use serde::{Deserialize, Serialize};
 use yolo_io::YoloEntry;
 
-use crate::{
-    settings::MAIN_LAYER,
-    utils::{scale_dimensions, srgba_string_to_color},
-};
+use crate::utils::{scale_dimensions, srgba_string_to_color};
 
 #[derive(Debug, PartialEq, Clone, Serialize)]
 pub struct BoundingBoxSettings {
@@ -111,12 +108,7 @@ impl BoundingBoxPainter {
         index: usize,
         entry: &YoloEntry,
         image_size: Vec2,
-    ) -> (
-        Name,
-        ShapeBundle<RectangleComponent>,
-        BoundingBox,
-        RenderLayers,
-    ) {
+    ) -> (Name, ShapeBundle<RectangleComponent>, BoundingBox) {
         let (scaled_x_center, scaled_y_center, scaled_width, scaled_height) = scale_dimensions(
             entry.x_center,
             entry.y_center,
@@ -153,7 +145,6 @@ impl BoundingBoxPainter {
                 width: scaled_width,
                 height: scaled_height,
             },
-            MAIN_LAYER,
         )
     }
 

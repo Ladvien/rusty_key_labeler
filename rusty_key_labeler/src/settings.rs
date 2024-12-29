@@ -7,8 +7,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{bounding_boxes::BoundingBoxSettings, utils::srgba_string_to_color};
 
-pub const MAIN_LAYER: RenderLayers = RenderLayers::layer(0);
-pub const UI_LAYER: RenderLayers = RenderLayers::layer(1);
+// pub const MAIN_LAYER: RenderLayers = RenderLayers::layer(0);
+// pub const UI_LAYER: RenderLayers = RenderLayers::layer(1);
 
 // Default colors
 pub const UI_BACKGROUND_COLOR: Color = Color::srgba(0.0, 0.0, 0.5, 0.5);

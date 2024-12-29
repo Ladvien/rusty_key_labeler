@@ -69,22 +69,23 @@ fn main() {
         .insert_resource(bb_painter)
         .insert_resource(app_data)
         .insert_resource(ui)
-        .add_systems(Startup, (setup, ui_setup))
+        .add_systems(Startup, (ui_setup, setup).chain())
         .add_systems(
             Update,
             (
                 next_and_previous_system,
-                load_bounding_boxes,
-                update_labeling_index,
-                update_current_file_name_label,
+                // load_bounding_boxes,
+                // update_labeling_index,
+                // update_current_file_name_label,
                 debounce_timer_system,
                 image_state_system,
                 translate_image_system,
-                zoom_image_system,
-                compute_canvas_viewport,
-                fit_to_viewport,
-                change_bounding_box_selection,
-                debug_viewport,
+                add_ready_image_to_canvas,
+                // zoom_image_system,
+                // compute_canvas_viewport,
+                // fit_to_viewport,
+                // change_bounding_box_selection,
+                // debug_viewport,
             )
                 .chain(),
         )

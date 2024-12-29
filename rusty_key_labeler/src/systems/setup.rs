@@ -1,15 +1,11 @@
-use super::start_image_load;
-use crate::{
-    resources::AppData,
-    settings::{MAIN_LAYER, UI_LAYER},
-    MainCamera, Ui, UiCamera,
-};
+use crate::{resources::AppData, ImageLoading, MainCamera, TopRightPanelUI, Ui, UiCamera};
 use bevy::prelude::*;
 
 pub fn setup(
     mut commands: Commands,
     mut app_data: ResMut<AppData>,
     asset_server: Res<AssetServer>,
+    mut canvas: Query<&mut ImageNode, With<TopRightPanelUI>>,
 ) {
     app_data.index = 0;
     let valid_pairs = app_data.yolo_project.get_valid_pairs();
@@ -29,44 +25,23 @@ pub fn setup(
         //     high_pass_frequency: 0.1,
         //     ..Default::default()
         // },
-        MAIN_LAYER,
         MainCamera,
     ));
 
-    start_image_load(
-        &mut commands,
-        asset_server,
-        app_data.index,
-        valid_pairs.len() as isize - 1,
-        0.0,
-        valid_pairs,
-    );
-}
+    let valid_pairs = app_data.yolo_project.get_valid_pairs();
 
-// Systems on Setup
-pub fn ui_setup(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    mut app_data: ResMut<AppData>,
-    mut ui: ResMut<Ui>,
-) {
-    let font_handle: Handle<Font> = asset_server.load(ui.font_path.clone());
-    ui.font_handle = Some(font_handle.clone());
+    // Load next image
+    let next_image_path = match valid_pairs[app_data.index as usize].image_path.clone() {
+        Some(image) => image,
+        _ => {
+            error!("Image path not found");
+            return;
+        }
+    };
+    let next_image = next_image_path.as_path().to_string_lossy().into_owned();
 
-    commands.spawn((
-        Name::new("ui_camera"),
-        Camera2d,
-        Camera {
-            // Render the UI on top of everything else.
-            order: 1,
-            ..default()
-        },
-        UI_LAYER,
-        UiCamera,
-    ));
+    // Add image to the scene
+    let next_image_handle = asset_server.load::<Image>(next_image.clone());
 
-    let (container_ui_eid, left_panel_ui_eid) = ui.spawn_ui(&mut commands);
-
-    app_data.ui_eid = Some(container_ui_eid);
-    app_data.left_panel_eid = Some(left_panel_ui_eid);
+    commands.spawn((ImageLoading(next_image_handle.clone()),));
 }

@@ -9,8 +9,8 @@ pub fn debounce_timer_system(
     for (entity, mut timer) in query.iter_mut() {
         timer.timer.tick(time.delta());
         if !timer.timer.finished() {
-            return;
+            continue;
         }
-        commands.entity(entity).remove::<DebounceTimer>();
+        commands.entity(entity).despawn_recursive();
     }
 }

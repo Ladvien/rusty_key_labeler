@@ -1,3 +1,9 @@
+use crate::{
+    settings::UiColors, AppData, CurrentFileNameLabel, CurrentFileNameLabelUpdateNeeded,
+    UIBottomPanel, UILeftPanel, UITopPanel, UiBasePanel, UiLabelingIndex,
+    UiLabelingIndexUpdateNeeded,
+};
+use crate::{MainCamera, TopRightPanelUI, Ui};
 use bevy::render::{
     render_asset::RenderAssetUsages,
     render_resource::{Extent3d, TextureDimension, TextureFormat},
@@ -5,18 +11,36 @@ use bevy::render::{
 use bevy::{color::palettes::css::*, prelude::*};
 use bevy_ui_views::{VStack, VStackContainerItem};
 
-use crate::{
-    settings::{UiColors, UI_LAYER},
-    CurrentFileNameLabel, CurrentFileNameLabelUpdateNeeded, UIBottomPanel, UILeftPanel, UITopPanel,
-    UiBasePanel, UiLabelingIndex, UiLabelingIndexUpdateNeeded,
-};
-use crate::{TopRightPanelUI, Ui};
-
+pub const CANVAS_Z_INDEX: i32 = 0;
 pub const UI_Z_INDEX: f32 = 99.0;
 pub const PADDING: f32 = 5.0;
 
-// #[derive(Debug, Clone, Component)]
-// pub struct UiProperties;
+// Systems on Setup
+pub fn ui_setup(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut app_data: ResMut<AppData>,
+    mut ui: ResMut<Ui>,
+) {
+    let font_handle: Handle<Font> = asset_server.load(ui.font_path.clone());
+    ui.font_handle = Some(font_handle.clone());
+
+    // commands.spawn((
+    //     Name::new("ui_camera"),
+    //     Camera2d,
+    //     Camera {
+    //         // Render the UI on top of everything else.
+    //         order: 1,
+    //         ..default()
+    //     },
+    //     MainCamera,
+    // ));
+
+    let (container_ui_eid, left_panel_ui_eid) = ui.spawn_ui(&mut commands);
+
+    app_data.ui_eid = Some(container_ui_eid);
+    app_data.left_panel_eid = Some(left_panel_ui_eid);
+}
 
 // Systems on Update
 pub fn update_labeling_index(
@@ -68,15 +92,15 @@ impl Ui {
                     width: Val::Percent(100.0),
                     height: Val::Percent(100.0),
                     border: UiRect::all(Val::Px(4.0)),
+                    overflow: Overflow {
+                        x: OverflowAxis::Clip,
+                        y: OverflowAxis::Clip,
+                    },
                     ..Default::default()
-                },
-                Transform {
-                    translation: Vec3::new(0.0, 0.0, UI_Z_INDEX),
-                    ..default()
                 },
                 BorderColor(self.colors.outer_border),
                 // BorderColor(Color::from(ORANGE)),
-                UI_LAYER,
+                ZIndex(UI_Z_INDEX as i32),
             ))
             .id();
 
@@ -87,13 +111,13 @@ impl Ui {
                     flex_direction: FlexDirection::Row,
                     width: Val::Percent(100.0),
                     height: Val::Percent(90.0),
-                    border: UiRect::all(Val::Px(1.0)),
-                    padding: UiRect {
-                        left: Val::Px(0.0),
-                        right: Val::Px(PADDING),
-                        top: Val::Px(0.0),
-                        bottom: Val::Px(PADDING),
-                    },
+                    // border: UiRect::all(Val::Px(1.0)),
+                    // padding: UiRect {
+                    //     left: Val::Px(0.0),
+                    //     right: Val::Px(PADDING),
+                    //     top: Val::Px(0.0),
+                    //     bottom: Val::Px(PADDING),
+                    // },
                     ..default()
                 },
                 BorderColor(self.colors.outer_border),
@@ -103,7 +127,7 @@ impl Ui {
                     ..default()
                 },
                 UITopPanel,
-                UI_LAYER,
+                ZIndex(UI_Z_INDEX as i32),
             ))
             .id();
 
@@ -128,7 +152,7 @@ impl Ui {
                 BackgroundColor(self.colors.background),
                 // BackgroundColor(Color::from(ORANGE_RED)),
                 UILeftPanel,
-                UI_LAYER,
+                ZIndex(UI_Z_INDEX as i32),
             ))
             .id();
 
@@ -138,17 +162,24 @@ impl Ui {
             .spawn((
                 Name::new("right_top_panel"),
                 Node {
-                    width: Val::Percent(80.0),
-                    height: Val::Percent(100.0),
-                    max_width: Val::Percent(80.0),
+                    // position_type: PositionType::Absolute,
+                    overflow: Overflow {
+                        x: OverflowAxis::Hidden,
+                        y: OverflowAxis::Hidden,
+                    },
+                    left: Val::Px(0.0),
+                    top: Val::Px(0.0),
+                    // width: Val::Percent(80.0),
+                    // max_width: Val::Percent(80.0),
+                    // min_width: Val::Percent(80.0),
+                    // height: Val::Percent(100.0),
+                    // min_height: Val::Percent(100.0),
+                    // max_height: Val::Percent(100.0),
                     ..default()
                 },
+                ImageNode::default(),
                 TopRightPanelUI,
-                Transform {
-                    translation: Vec3::new(0.0, 0.0, UI_Z_INDEX),
-                    ..default()
-                },
-                UI_LAYER,
+                ZIndex(CANVAS_Z_INDEX),
             ))
             .id();
 
@@ -164,7 +195,6 @@ impl Ui {
                     position: Vec2::new(0.0, 0.0),
                     percent_width: 100.0,
                     percent_height: 100.0,
-                    layer: UI_LAYER,
                     background_color: self.colors.background,
                     border_color: self.colors.outer_border,
                     border: UiRect {
@@ -175,6 +205,7 @@ impl Ui {
                     },
                     ..Default::default()
                 },
+                ZIndex(UI_Z_INDEX as i32),
             ))
             .id();
 
@@ -203,7 +234,7 @@ impl Ui {
                     translation: Vec3::new(0.0, 0.0, UI_Z_INDEX),
                     ..default()
                 },
-                UI_LAYER,
+                ZIndex(UI_Z_INDEX as i32),
             ))
             .insert(PickingBehavior {
                 should_block_lower: false,
