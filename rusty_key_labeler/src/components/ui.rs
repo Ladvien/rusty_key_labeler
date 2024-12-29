@@ -4,10 +4,7 @@ use bevy::prelude::*;
 use crate::settings::UiColors;
 
 #[derive(Debug, Clone, Component)]
-pub struct TopRightPanelUI;
-
-#[derive(Debug, Clone, Component)]
-pub struct UiCamera;
+pub struct ImageViewport;
 
 #[derive(Debug, Clone, Component)]
 pub struct UiBasePanel;

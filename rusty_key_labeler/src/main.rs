@@ -69,7 +69,7 @@ fn main() {
         .insert_resource(bb_painter)
         .insert_resource(app_data)
         .insert_resource(ui)
-        .add_systems(Startup, (ui_setup, setup).chain())
+        .add_systems(Startup, setup)
         .add_systems(
             Update,
             (
@@ -80,8 +80,9 @@ fn main() {
                 debounce_timer_system,
                 image_state_system,
                 translate_image_system,
-                add_ready_image_to_canvas,
-                // zoom_image_system,
+                // add_ready_image_to_canvas,
+                setup_viewport,
+                zoom_image_system,
                 // compute_canvas_viewport,
                 // fit_to_viewport,
                 // change_bounding_box_selection,

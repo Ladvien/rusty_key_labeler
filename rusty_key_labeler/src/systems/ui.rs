@@ -1,9 +1,11 @@
+use crate::utils::create_image_from_color;
 use crate::{
     settings::UiColors, AppData, CurrentFileNameLabel, CurrentFileNameLabelUpdateNeeded,
     UIBottomPanel, UILeftPanel, UITopPanel, UiBasePanel, UiLabelingIndex,
     UiLabelingIndexUpdateNeeded,
 };
-use crate::{MainCamera, TopRightPanelUI, Ui};
+use crate::{ImageViewport, MainCamera, Ui};
+use bevy::render::view::RenderLayers;
 use bevy::render::{
     render_asset::RenderAssetUsages,
     render_resource::{Extent3d, TextureDimension, TextureFormat},
@@ -11,36 +13,22 @@ use bevy::render::{
 use bevy::{color::palettes::css::*, prelude::*};
 use bevy_ui_views::{VStack, VStackContainerItem};
 
+use super::VIEWPORT_LAYER;
+
 pub const CANVAS_Z_INDEX: i32 = 0;
 pub const UI_Z_INDEX: f32 = 99.0;
 pub const PADDING: f32 = 5.0;
 
 // Systems on Setup
-pub fn ui_setup(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    mut app_data: ResMut<AppData>,
-    mut ui: ResMut<Ui>,
-) {
-    let font_handle: Handle<Font> = asset_server.load(ui.font_path.clone());
-    ui.font_handle = Some(font_handle.clone());
+// pub fn ui_setup(
+//     mut commands: Commands,
+//     asset_server: Res<AssetServer>,
+//     mut app_data: ResMut<AppData>,
+//     mut ui: ResMut<Ui>,
+//     mut images: ResMut<Assets<Image>>,
+// ) {
 
-    // commands.spawn((
-    //     Name::new("ui_camera"),
-    //     Camera2d,
-    //     Camera {
-    //         // Render the UI on top of everything else.
-    //         order: 1,
-    //         ..default()
-    //     },
-    //     MainCamera,
-    // ));
-
-    let (container_ui_eid, left_panel_ui_eid) = ui.spawn_ui(&mut commands);
-
-    app_data.ui_eid = Some(container_ui_eid);
-    app_data.left_panel_eid = Some(left_panel_ui_eid);
-}
+// }
 
 // Systems on Update
 pub fn update_labeling_index(
@@ -79,7 +67,11 @@ impl Ui {
         }
     }
 
-    pub fn spawn_ui(&self, commands: &mut Commands) -> (Entity, Entity) {
+    pub fn spawn_ui(
+        &self,
+        commands: &mut Commands,
+        viewport_image: Handle<Image>,
+    ) -> (Entity, Entity) {
         // Spawn the UI Container
         let container_eid = commands
             .spawn((
@@ -177,9 +169,13 @@ impl Ui {
                     // max_height: Val::Percent(100.0),
                     ..default()
                 },
-                ImageNode::default(),
-                TopRightPanelUI,
+                ImageNode {
+                    image: viewport_image.clone_weak(),
+                    ..Default::default()
+                },
+                ImageViewport,
                 ZIndex(CANVAS_Z_INDEX),
+                VIEWPORT_LAYER,
             ))
             .id();
 
@@ -291,35 +287,4 @@ impl Ui {
             ..Default::default()
         }
     }
-
-    pub fn create_image_from_color(&self, color: Color) -> Image {
-        let color_data = color_to_float_array(color);
-        let pixel_data = color_data
-            .into_iter()
-            .flat_map(|channel| channel.to_ne_bytes())
-            .collect::<Vec<_>>();
-
-        // println!("Pixel data: {:#?}", pixel_data);
-
-        Image::new_fill(
-            Extent3d {
-                width: 4,
-                height: 4,
-                depth_or_array_layers: 1,
-            },
-            TextureDimension::D2,
-            &pixel_data,
-            TextureFormat::Rgba32Float,
-            RenderAssetUsages::RENDER_WORLD,
-        )
-    }
-}
-
-fn color_to_float_array(color: Color) -> [f32; 4] {
-    let r = color.to_linear().red;
-    let g = color.to_linear().green;
-    let b = color.to_linear().blue;
-    let a = color.to_linear().alpha;
-
-    [r, g, b, a]
 }

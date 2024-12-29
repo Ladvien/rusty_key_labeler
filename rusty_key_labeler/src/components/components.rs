@@ -18,6 +18,9 @@ pub struct SelectedImage;
 pub struct MainCamera;
 
 #[derive(Debug, Clone, Component)]
+pub struct ViewportCamera;
+
+#[derive(Debug, Clone, Component)]
 pub struct DebounceTimer {
     pub timer: Timer,
 }

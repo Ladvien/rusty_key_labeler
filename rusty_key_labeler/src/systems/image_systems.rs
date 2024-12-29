@@ -1,6 +1,6 @@
 use crate::ImageLoading;
 use crate::SelectedImage;
-use crate::{ImageReady, TopRightPanelUI};
+use crate::{ImageReady, ImageViewport};
 use bevy::asset::LoadState;
 use bevy::prelude::*;
 
@@ -39,14 +39,14 @@ pub fn image_state_system(
 
 pub fn add_ready_image_to_canvas(
     mut commands: Commands,
-    mut canvas: Query<(Entity, &mut ImageNode), With<TopRightPanelUI>>,
+    mut viewport: Query<(Entity, &mut ImageNode), With<ImageViewport>>,
     ready_image: Query<(Entity, &ImageReady), Added<ImageReady>>,
 ) {
     if ready_image.iter().count() == 0 {
         return;
     }
 
-    let (canvas_eid, mut canvas) = match canvas.iter_mut().next() {
+    let (canvas_eid, mut canvas) = match viewport.iter_mut().next() {
         Some((canvas_eid, canvas)) => (canvas_eid, canvas),
         None => {
             error!("Canvas not found");

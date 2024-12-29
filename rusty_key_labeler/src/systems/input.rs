@@ -3,8 +3,8 @@ use std::ops::AddAssign;
 use crate::{
     bounding_boxes::{BoundingBox, SelectedBoundingBox},
     resources::AppData,
-    DebounceNextImage, DebounceTimer, FocusViewport, ImageLoading, MainCamera, SelectedImage,
-    TopRightPanelUI, UITopPanel,
+    DebounceNextImage, DebounceTimer, FocusViewport, ImageLoading, ImageViewport, MainCamera,
+    SelectedImage, UITopPanel, ViewportCamera,
 };
 use bevy::{math::VectorSpace, prelude::*};
 use bevy_inspector_egui::bevy_egui::node;
@@ -119,21 +119,50 @@ pub fn translate_image_system(
         let new_left = canvas_left_px - app_data.config.settings.pan_factor.x * time.delta_secs();
         canvas_node.left = Val::Px(new_left);
     }
+
+    // let mut canvas_height_px = canvas_node
+    //     .height
+    //     .resolve(canvas_container_node.size().y, viewport_size)
+    //     .expect("Failed to resolve canvas height");
+
+    // let mut canvas_width_px = canvas_node
+    //     .width
+    //     .resolve(canvas_container_node.size().x, viewport_size)
+    //     .expect("Failed to resolve canvas width");
+    // info!("Height: {:#?}", canvas_height_px);
+    // info!("Width: {:#?}", canvas_width_px);
+    // if keyboard_input.pressed(app_data.config.settings.key_map.zoom_in) {
+    //     height *= app_data.config.settings.zoom_factor;
+    //     width *= app_data.config.settings.zoom_factor;
+    // }
+    // if keyboard_input.pressed(app_data.config.settings.key_map.zoom_out) {
+    //     height /= app_data.config.settings.zoom_factor;
+    //     width /= app_data.config.settings.zoom_factor;
+    // }
+
+    // info!("After Height: {:#?}", height);
+    // info!("After Width: {:#?}", width);
+    // canvas_node.height = height;
+    // canvas_node.width = width;
 }
 
 pub fn zoom_image_system(
-    mut query: Query<&mut OrthographicProjection, With<MainCamera>>,
+    mut projection: Query<&mut OrthographicProjection, With<ViewportCamera>>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
     app_data: Res<AppData>,
 ) {
-    for mut projection in query.iter_mut() {
+    for mut projection in projection.iter_mut() {
         let mut scale = projection.scale;
         let zoom_factor = app_data.config.settings.zoom_factor;
         if keyboard_input.pressed(app_data.config.settings.key_map.zoom_in) {
+            info!("Before scale: {:#?}", scale);
             scale *= zoom_factor;
+            info!("Afteer scale: {:#?}", scale);
         }
         if keyboard_input.pressed(app_data.config.settings.key_map.zoom_out) {
+            info!("Before scale: {:#?}", scale);
             scale /= zoom_factor;
+            info!("Afteer scale: {:#?}", scale);
         }
         projection.scale = scale;
     }

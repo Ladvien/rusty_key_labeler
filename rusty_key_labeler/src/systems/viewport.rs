@@ -1,12 +1,40 @@
 use crate::{resources::AppData, MainCamera};
-use crate::{CanvasMarker, ComputedViewport, FocusViewport};
+use crate::{CanvasMarker, ComputedViewport, FocusViewport, ImageViewport, ViewportCamera};
 use bevy::color::palettes::css::{INDIAN_RED, LIMEGREEN};
 use bevy::prelude::*;
+use bevy::render::camera::{RenderTarget, Viewport};
+use bevy::render::view::RenderLayers;
 use bevy_vector_shapes::{
     prelude::ShapeConfig,
     shapes::{RectangleBundle, ShapeBundle},
 };
 pub const MAGIC_NUMBER_UI: f32 = 10.0;
+pub const VIEWPORT_LAYER: RenderLayers = RenderLayers::layer(1);
+
+pub fn setup_viewport(
+    mut commands: Commands,
+    // mut app_data: ResMut<AppData>,
+    viewport: Query<(&ComputedNode), With<ImageViewport>>,
+    mut viewport_camera: Query<&mut Camera, With<ViewportCamera>>,
+) {
+    if viewport.iter().count() == 0 {
+        return;
+    }
+
+    let mut camera = match viewport_camera.iter_mut().next() {
+        Some(camera) => camera,
+        None => {
+            error!("Viewport camera not found");
+            return;
+        }
+    };
+
+    camera.viewport = Some(Viewport {
+        physical_position: UVec2::new(0, 0),
+        physical_size: UVec2::new(1920, 1080),
+        depth: 0.0..1.0,
+    });
+}
 
 pub fn compute_canvas_viewport(
     mut commands: Commands,
