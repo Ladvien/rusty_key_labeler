@@ -5,6 +5,7 @@ use itertools::Itertools;
 use crate::{
     bounding_boxes::{BoundingBoxPainter, ContainsBoundingBoxes},
     resources::AppData,
+    utils::create_image_from_color,
     ImageReady, SelectedImage, Ui,
 };
 
@@ -88,7 +89,7 @@ pub fn load_bounding_boxes(
                 let color = bb_painter.get_color(entry.class);
 
                 // TODO: I should preload all the color swatches, giving them a path.
-                let image = ui.create_image_from_color(color);
+                let image = create_image_from_color(color, 200, 200);
                 let image_handle = images.add(image);
 
                 let item = ui.create_bounding_box_entry(

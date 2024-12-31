@@ -55,7 +55,7 @@ impl Ui {
         }
     }
 
-    pub fn spawn_ui(&self, commands: &mut Commands) -> (Entity, Entity) {
+    pub fn spawn_ui(&self, commands: &mut Commands, canvas: &Handle<Image>) -> (Entity, Entity) {
         // Spawn the UI Container
         let container_eid = commands
             .spawn((
@@ -143,11 +143,11 @@ impl Ui {
                     max_width: Val::Percent(80.0),
                     ..default()
                 },
-                TopRightPanelUI,
-                Transform {
-                    translation: Vec3::new(0.0, 0.0, UI_Z_INDEX),
-                    ..default()
+                ImageNode {
+                    image: canvas.clone(),
+                    ..Default::default()
                 },
+                TopRightPanelUI,
                 UI_LAYER,
             ))
             .id();
@@ -260,35 +260,4 @@ impl Ui {
             ..Default::default()
         }
     }
-
-    pub fn create_image_from_color(&self, color: Color) -> Image {
-        let color_data = color_to_float_array(color);
-        let pixel_data = color_data
-            .into_iter()
-            .flat_map(|channel| channel.to_ne_bytes())
-            .collect::<Vec<_>>();
-
-        // println!("Pixel data: {:#?}", pixel_data);
-
-        Image::new_fill(
-            Extent3d {
-                width: 4,
-                height: 4,
-                depth_or_array_layers: 1,
-            },
-            TextureDimension::D2,
-            &pixel_data,
-            TextureFormat::Rgba32Float,
-            RenderAssetUsages::RENDER_WORLD,
-        )
-    }
-}
-
-fn color_to_float_array(color: Color) -> [f32; 4] {
-    let r = color.to_linear().red;
-    let g = color.to_linear().green;
-    let b = color.to_linear().blue;
-    let a = color.to_linear().alpha;
-
-    [r, g, b, a]
 }

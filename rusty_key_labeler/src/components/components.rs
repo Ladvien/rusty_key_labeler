@@ -4,7 +4,7 @@ use bevy::prelude::*;
 pub struct ImageLoading(pub Handle<Image>);
 
 #[derive(Debug, Clone, Component)]
-pub struct ImageReady;
+pub struct ImageReady(pub Handle<Image>);
 
 #[derive(Debug, Clone, Component)]
 pub struct SelectedImage;
@@ -32,3 +32,6 @@ pub struct ComputedViewport {
     pub height: f32,
     pub translation: Vec3,
 }
+
+#[derive(Debug, Clone, Default, Component)]
+pub struct UninitializedRenderTarget;

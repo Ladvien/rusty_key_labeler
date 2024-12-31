@@ -2,14 +2,17 @@ use super::start_image_load;
 use crate::{
     resources::AppData,
     settings::{MAIN_LAYER, UI_LAYER},
-    MainCamera, Ui, UiCamera,
+    utils::create_image_from_color,
+    MainCamera, Ui, UiCamera, UninitializedRenderTarget,
 };
-use bevy::prelude::*;
+use bevy::{prelude::*, render::camera::RenderTarget};
 
 pub fn setup(
     mut commands: Commands,
     mut app_data: ResMut<AppData>,
     asset_server: Res<AssetServer>,
+    mut ui: ResMut<Ui>,
+    mut images: ResMut<Assets<Image>>,
 ) {
     app_data.index = 0;
     let valid_pairs = app_data.yolo_project.get_valid_pairs();
@@ -19,11 +22,19 @@ pub fn setup(
     let first_image_path = first_image.as_path().to_string_lossy().into_owned();
     let _ = asset_server.load::<Image>(first_image_path.clone());
 
+    let canvas_image =
+        create_image_from_color(Color::from(Srgba::new(0.0, 0.0, 0.0, 0.0)), 2024, 1268);
+    let canvas_image_handle = images.add(canvas_image);
+
     // Load camera
     commands.spawn((
         Name::new("main_camera"),
         Camera2d,
-        Transform::from_xyz(0., 0., 16.).looking_at(Vec3::ZERO, Vec3::Y),
+        Camera {
+            order: 0,
+            // target: RenderTarget::Image(canvas_image_handle.clone()),
+            ..default()
+        },
         // BloomSettings {
         //     intensity: 0.1,
         //     high_pass_frequency: 0.1,
@@ -33,23 +44,8 @@ pub fn setup(
         MainCamera,
     ));
 
-    start_image_load(
-        &mut commands,
-        asset_server,
-        app_data.index,
-        valid_pairs.len() as isize - 1,
-        0.0,
-        valid_pairs,
-    );
-}
+    commands.spawn((UninitializedRenderTarget,));
 
-// Systems on Setup
-pub fn ui_setup(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    mut app_data: ResMut<AppData>,
-    mut ui: ResMut<Ui>,
-) {
     let font_handle: Handle<Font> = asset_server.load(ui.font_path.clone());
     ui.font_handle = Some(font_handle.clone());
 
@@ -65,8 +61,17 @@ pub fn ui_setup(
         UiCamera,
     ));
 
-    let (container_ui_eid, left_panel_ui_eid) = ui.spawn_ui(&mut commands);
+    let (container_ui_eid, left_panel_ui_eid) = ui.spawn_ui(&mut commands, &canvas_image_handle);
 
     app_data.ui_eid = Some(container_ui_eid);
     app_data.left_panel_eid = Some(left_panel_ui_eid);
+
+    start_image_load(
+        &mut commands,
+        asset_server,
+        app_data.index,
+        valid_pairs.len() as isize - 1,
+        0.0,
+        valid_pairs,
+    );
 }

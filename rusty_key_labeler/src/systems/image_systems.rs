@@ -151,7 +151,9 @@ pub fn image_state_system(
                     }
 
                     commands.entity(entity).remove::<ImageLoading>();
-                    commands.entity(entity).insert(ImageReady);
+                    commands
+                        .entity(entity)
+                        .insert(ImageReady(image_loading.0.clone()));
                 }
                 LoadState::NotLoaded => {
                     error!("Image not loaded");
