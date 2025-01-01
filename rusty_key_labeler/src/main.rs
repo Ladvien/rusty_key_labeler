@@ -63,7 +63,6 @@ fn main() {
             DefaultPlugins.set(ImagePlugin::default_nearest()), // Makes images crisp
             WorldInspectorPlugin::new(),
             Shape2dPlugin::default(),
-            // UiDefaultPlugins,
             BevyUiViewsPlugin,
         ))
         .insert_resource(bb_painter)

@@ -4,7 +4,7 @@ use super::start_image_load;
 use crate::{
     resources::AppData,
     settings::{MAIN_LAYER, UI_LAYER},
-    utils::create_image_from_color,
+    utils::create_canvas_image,
     MainCamera, Ui, UiCamera, UninitializedRenderTarget,
 };
 
@@ -23,8 +23,7 @@ pub fn setup(
     let first_image_path = first_image.as_path().to_string_lossy().into_owned();
     let _ = asset_server.load::<Image>(first_image_path.clone());
 
-    let canvas_image =
-        create_image_from_color(Color::from(Srgba::new(0.0, 0.0, 0.0, 0.0)), 2024, 1268);
+    let canvas_image = create_canvas_image(Color::from(Srgba::new(0.0, 0.0, 0.0, 0.0)), 2024, 1268);
     let canvas_image_handle = images.add(canvas_image);
 
     // Load camera

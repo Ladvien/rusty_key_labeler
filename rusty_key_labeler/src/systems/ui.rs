@@ -7,7 +7,8 @@ use bevy_ui_views::{VStack, VStackContainerItem};
 
 use crate::{
     settings::{UiColors, UI_LAYER},
-    CurrentFileNameLabel, CurrentFileNameLabelUpdateNeeded, UIBottomPanel, UILeftPanel, UITopPanel,
+    utils::color_to_float_array,
+    CurrentFileNameLabel, FileNameLabelUpdateNeeded, UIBottomPanel, UILeftPanel, UITopPanel,
     UiBasePanel, UiLabelingIndex, UiLabelingIndexUpdateNeeded,
 };
 use crate::{TopRightPanelUI, Ui};
@@ -35,7 +36,7 @@ pub fn update_labeling_index(
 pub fn update_current_file_name_label(
     mut commands: Commands,
     mut query: Query<&mut Text, With<CurrentFileNameLabel>>,
-    update_query: Query<(Entity, &CurrentFileNameLabelUpdateNeeded)>,
+    update_query: Query<(Entity, &FileNameLabelUpdateNeeded)>,
 ) {
     for (update_eid, update) in update_query.iter() {
         for mut text in query.iter_mut() {

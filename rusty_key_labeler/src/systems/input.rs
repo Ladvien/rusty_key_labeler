@@ -1,9 +1,66 @@
 use crate::{
     bounding_boxes::{BoundingBox, SelectedBoundingBox},
     resources::AppData,
-    FocusViewport, MainCamera, SelectedImage,
+    DebounceTimer, FocusViewport, MainCamera, SelectedImage,
 };
 use bevy::prelude::*;
+
+use super::start_image_load;
+
+pub fn image_selection_system(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
+    mut app_data: ResMut<AppData>,
+    query_selected_images: Query<Entity, With<SelectedImage>>,
+    debounced_timer: Query<Entity, (With<DebounceTimer>, With<SelectedImage>)>,
+    mut main_camera: Query<(&mut OrthographicProjection, &mut Transform), With<MainCamera>>,
+) {
+    // Check if debounce timer is still running.
+    if debounced_timer.iter().count() > 0 {
+        return;
+    }
+
+    if keyboard_input.pressed(KeyCode::ArrowRight) {
+        app_data.index += 1;
+    } else if keyboard_input.pressed(KeyCode::ArrowLeft) {
+        app_data.index -= 1;
+    } else {
+        return;
+    }
+
+    let valid_pairs = app_data.yolo_project.get_valid_pairs();
+
+    if app_data.index < 0 {
+        app_data.index = valid_pairs.len() as isize - 1;
+    }
+
+    if app_data.index >= valid_pairs.len() as isize {
+        app_data.index = 0;
+    }
+
+    let (mut projection, mut camera_transform) = main_camera.single_mut();
+
+    // We need to reset the camera scale to prepare
+    // for centering the next image.
+    projection.scale = 1.0;
+    camera_transform.translation = Vec3::new(0., 0., 0.);
+
+    let total_images = valid_pairs.len() as isize - 1;
+    start_image_load(
+        &mut commands,
+        asset_server,
+        app_data.index,
+        total_images,
+        app_data.config.settings.delay_between_images,
+        valid_pairs,
+    );
+
+    // Remove old selected image.
+    for entity in query_selected_images.iter() {
+        commands.entity(entity).despawn_recursive();
+    }
+}
 
 pub fn translate_image_system(
     mut query: Query<&mut Transform, With<SelectedImage>>,

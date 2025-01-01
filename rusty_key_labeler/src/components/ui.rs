@@ -33,7 +33,7 @@ pub struct UiLabelingIndexUpdateNeeded(pub String);
 pub struct CurrentFileNameLabel;
 
 #[derive(Debug, Clone, Component)]
-pub struct CurrentFileNameLabelUpdateNeeded(pub String);
+pub struct FileNameLabelUpdateNeeded(pub String);
 
 // END UI Part Markers
 

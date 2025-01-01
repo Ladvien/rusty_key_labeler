@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy::render::camera::RenderTarget;
 
-use crate::utils::create_image_from_color;
+use crate::utils::create_canvas_image;
 use crate::MainCamera;
 use crate::{ComputedViewport, FocusViewport, TopRightPanelUI, UninitializedRenderTarget};
 
@@ -61,7 +61,7 @@ pub fn compute_viewport(
         return;
     };
 
-    let canvas_image = create_image_from_color(
+    let canvas_image = create_canvas_image(
         Color::from(Srgba::new(0.0, 0.0, 0.0, 0.0)),
         computed_viewport_size.x as u32,
         computed_viewport_size.y as u32,

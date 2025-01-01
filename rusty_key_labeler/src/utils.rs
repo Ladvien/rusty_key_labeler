@@ -3,10 +3,16 @@ use bevy::{
     color::Color,
     image::Image,
     math::Vec2,
-    render::render_resource::{
-        Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
+    prelude::Visibility,
+    render::{
+        render_resource::{
+            Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
+        },
+        view::RenderLayers,
     },
 };
+
+use crate::settings::MAIN_LAYER;
 
 pub fn srgba_string_to_color(srgba_string: &str) -> Option<Color> {
     let rgba: Vec<&str> = srgba_string
@@ -50,6 +56,29 @@ pub fn create_image_from_color(color: Color, width: u32, height: u32) -> Image {
         .flat_map(|channel| channel.to_ne_bytes())
         .collect::<Vec<_>>();
 
+    // println!("Pixel data: {:#?}", pixel_data);
+
+    Image::new_fill(
+        Extent3d {
+            width,
+
+            depth_or_array_layers: 1,
+            height,
+        },
+        TextureDimension::D2,
+        &pixel_data,
+        TextureFormat::Rgba32Float,
+        RenderAssetUsages::RENDER_WORLD,
+    )
+}
+
+pub fn create_canvas_image(color: Color, width: u32, height: u32) -> Image {
+    let color_data = color_to_float_array(color);
+    let pixel_data = color_data
+        .into_iter()
+        .flat_map(|channel| channel.to_ne_bytes())
+        .collect::<Vec<_>>();
+
     let canvas_size = Extent3d {
         width,
         height,
@@ -79,11 +108,20 @@ pub fn create_image_from_color(color: Color, width: u32, height: u32) -> Image {
     canvas
 }
 
-fn color_to_float_array(color: Color) -> [f32; 4] {
+pub fn color_to_float_array(color: Color) -> [f32; 4] {
     let r = color.to_linear().red;
     let g = color.to_linear().green;
     let b = color.to_linear().blue;
     let a = color.to_linear().alpha;
 
     [r, g, b, a]
+}
+
+// Default values functions
+pub fn default_hide() -> Visibility {
+    Visibility::Hidden
+}
+
+pub fn default_main_layer() -> RenderLayers {
+    MAIN_LAYER
 }

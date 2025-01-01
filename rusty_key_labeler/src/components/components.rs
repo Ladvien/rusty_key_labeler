@@ -6,7 +6,7 @@ pub struct ImageLoading(pub Handle<Image>);
 #[derive(Debug, Clone, Component)]
 pub struct ImageReady(pub Handle<Image>);
 
-#[derive(Debug, Clone, Component)]
+#[derive(Debug, Clone, Component, Default)]
 pub struct SelectedImage;
 
 #[derive(Debug, Clone, Component)]
