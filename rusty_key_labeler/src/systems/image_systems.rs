@@ -1,14 +1,13 @@
 use crate::{resources::AppData, settings::MAIN_LAYER, MainCamera, SelectedImage};
+use crate::{ComputedViewport, FocusViewport, ImageReady};
 use crate::{
     DebounceTimer, ImageLoading, {CurrentFileNameLabelUpdateNeeded, UiLabelingIndexUpdateNeeded},
 };
-use crate::{FocusViewport, ImageReady};
 use bevy::asset::LoadState;
 use bevy::prelude::*;
 use yolo_io::ImageLabelPair;
 
-#[warn(clippy::too_many_arguments)]
-pub fn next_and_previous_system(
+pub fn image_selection_system(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
@@ -104,6 +103,7 @@ pub fn start_image_load(
         },
         SelectedImage,
         ImageLoading(next_image_handle),
+        Visibility::Hidden,
         Transform::from_translation(center),
         MAIN_LAYER,
         DebounceTimer {
@@ -132,28 +132,41 @@ pub fn image_state_system(
     asset_server: Res<AssetServer>,
     images_being_loaded: Query<(Entity, &ImageLoading)>,
     images: Res<Assets<Image>>,
+    selected_images: Query<Entity, With<SelectedImage>>,
+    viewport: Query<(Entity, &ComputedViewport)>,
 ) {
-    // Check if images are still being loaded.
+    // Check if images are still being loaded
+    if viewport.iter().count() == 0 {
+        return;
+    }
+
     for (entity, image_loading) in images_being_loaded.iter() {
         match asset_server.get_load_state(&image_loading.0) {
             Some(image_handle) => match image_handle {
                 LoadState::Loaded => {
                     info!("Image loaded");
 
-                    // Whenever the image is loaded, we should scale it to
+                    // Whenever the SelectedImage is loaded, we should scale it to
                     // fit the viewport.
-                    if let Some(image) = images.get(&image_loading.0) {
-                        let width = image.width() as f32;
-                        let height = image.height() as f32;
-                        commands
-                            .entity(entity)
-                            .insert(FocusViewport { width, height });
+                    // TODO: Reset the viewport when window resized.
+                    if selected_images.contains(entity) {
+                        if let Some(image) = images.get(&image_loading.0) {
+                            let width = image.width() as f32;
+                            let height = image.height() as f32;
+
+                            commands
+                                .entity(entity)
+                                .insert(FocusViewport { width, height });
+                        }
                     }
 
                     commands.entity(entity).remove::<ImageLoading>();
                     commands
                         .entity(entity)
                         .insert(ImageReady(image_loading.0.clone()));
+
+                    // Make the image visible now that it's loaded.
+                    commands.entity(entity).insert(Visibility::Visible);
                 }
                 LoadState::NotLoaded => {
                     error!("Image not loaded");

@@ -83,8 +83,8 @@ pub fn compute_viewport(
 
 pub fn fit_to_viewport(
     mut commands: Commands,
-    target: Query<(Entity, &FocusViewport), (Added<FocusViewport>, Without<MainCamera>)>,
     mut main_camera: Query<&mut OrthographicProjection, With<MainCamera>>,
+    target: Query<(Entity, &FocusViewport), (Added<FocusViewport>, Without<MainCamera>)>,
     computed_viewport: Query<&ComputedViewport>,
 ) {
     if computed_viewport.iter().count() == 0 {

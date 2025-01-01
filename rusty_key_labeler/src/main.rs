@@ -73,7 +73,7 @@ fn main() {
         .add_systems(
             Update,
             (
-                next_and_previous_system,
+                image_selection_system,
                 load_bounding_boxes,
                 update_labeling_index,
                 update_current_file_name_label,
