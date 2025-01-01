@@ -1,18 +1,9 @@
-use bevy::color::palettes::css::{INDIAN_RED, LIMEGREEN};
 use bevy::prelude::*;
 use bevy::render::camera::RenderTarget;
-use bevy::render::view;
-use bevy_inspector_egui::egui::viewport;
-use bevy_vector_shapes::{
-    prelude::ShapeConfig,
-    shapes::{RectangleBundle, ShapeBundle},
-};
 
 use crate::utils::create_image_from_color;
-use crate::{settings::MAIN_LAYER, MainCamera};
-use crate::{
-    CanvasMarker, ComputedViewport, FocusViewport, TopRightPanelUI, UninitializedRenderTarget,
-};
+use crate::MainCamera;
+use crate::{ComputedViewport, FocusViewport, TopRightPanelUI, UninitializedRenderTarget};
 
 pub fn compute_viewport(
     mut commands: Commands,
@@ -88,87 +79,6 @@ pub fn compute_viewport(
 
     commands.entity(viewport_eid).insert(computed_viewport);
     commands.entity(uninitialized_render_target_eid).despawn();
-}
-
-pub fn debug_viewport(
-    mut commands: Commands,
-    canvas_marker: Query<Entity, With<CanvasMarker>>,
-    // viewport: Query<&ComputedViewport, Changed<ComputedViewport>>,
-    main_camera: Query<(&Camera, &OrthographicProjection), With<MainCamera>>,
-) {
-    // if viewport.iter().count() == 0 {
-    //     return;
-    // }
-
-    // Remove old debug canvas data
-    for entity in canvas_marker.iter() {
-        commands.entity(entity).despawn_recursive();
-    }
-
-    // let viewport = match viewport.iter().next() {
-    //     Some(data) => data,
-    //     None => {
-    //         error!("Canvas data not found");
-    //         return;
-    //     }
-    // };
-
-    let (camera, camera_projection) = match main_camera.iter().next() {
-        Some((camera, camera_projection)) => (camera, camera_projection),
-        None => {
-            error!("Main camera not found");
-            return;
-        }
-    };
-
-    // let transform = Transform::from_translation(viewport.translation);
-    // let size = Vec2::new(viewport.width, viewport.height) / 2.;
-    let size = match camera.viewport.clone() {
-        Some(viewport) => Vec2::new(
-            viewport.physical_size.x as f32,
-            viewport.physical_size.y as f32,
-        ),
-        None => {
-            error!("Viewport not found");
-            return;
-        }
-    };
-
-    let debug_canvas_border = (
-        Name::new("debug_canvas"),
-        CanvasMarker,
-        ShapeBundle::rect(
-            &ShapeConfig {
-                // transform,
-                hollow: true,
-                thickness: 5.0,
-                render_layers: Some(MAIN_LAYER),
-                color: Color::from(INDIAN_RED),
-                ..ShapeConfig::default_2d()
-            },
-            size,
-        ),
-        MAIN_LAYER,
-    );
-
-    commands.spawn(debug_canvas_border);
-
-    let debug_canvas_center = (
-        Name::new("debug_canvas_center"),
-        CanvasMarker,
-        ShapeBundle::rect(
-            &ShapeConfig {
-                // transform,
-                render_layers: Some(MAIN_LAYER),
-                color: Color::from(LIMEGREEN),
-                ..ShapeConfig::default_2d()
-            },
-            Vec2::new(20.0, 20.0),
-        ),
-        MAIN_LAYER,
-    );
-
-    commands.spawn(debug_canvas_center);
 }
 
 pub fn fit_to_viewport(
