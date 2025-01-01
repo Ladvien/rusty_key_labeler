@@ -82,10 +82,10 @@ fn main() {
                 translate_image_system,
                 zoom_image_system,
                 // compute_canvas_viewport,
-                // fit_to_viewport,
+                fit_to_viewport,
                 // change_bounding_box_selection,
                 // debug_viewport,
-                test,
+                compute_viewport,
             )
                 .chain(),
         )

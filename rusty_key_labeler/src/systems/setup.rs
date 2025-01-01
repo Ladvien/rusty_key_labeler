@@ -1,3 +1,5 @@
+use bevy::prelude::*;
+
 use super::start_image_load;
 use crate::{
     resources::AppData,
@@ -5,14 +7,13 @@ use crate::{
     utils::create_image_from_color,
     MainCamera, Ui, UiCamera, UninitializedRenderTarget,
 };
-use bevy::{prelude::*, render::camera::RenderTarget};
 
 pub fn setup(
     mut commands: Commands,
     mut app_data: ResMut<AppData>,
-    asset_server: Res<AssetServer>,
     mut ui: ResMut<Ui>,
     mut images: ResMut<Assets<Image>>,
+    asset_server: Res<AssetServer>,
 ) {
     app_data.index = 0;
     let valid_pairs = app_data.yolo_project.get_valid_pairs();
@@ -32,14 +33,8 @@ pub fn setup(
         Camera2d,
         Camera {
             order: 0,
-            // target: RenderTarget::Image(canvas_image_handle.clone()),
             ..default()
         },
-        // BloomSettings {
-        //     intensity: 0.1,
-        //     high_pass_frequency: 0.1,
-        //     ..Default::default()
-        // },
         MAIN_LAYER,
         MainCamera,
     ));

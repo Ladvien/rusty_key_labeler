@@ -26,7 +26,7 @@ pub struct FocusViewport {
 #[derive(Debug, Clone, Default, Component)]
 pub struct CanvasMarker;
 
-#[derive(Debug, Clone, Default, Component)]
+#[derive(Debug, Clone, Default, Component, Reflect)]
 pub struct ComputedViewport {
     pub width: f32,
     pub height: f32,

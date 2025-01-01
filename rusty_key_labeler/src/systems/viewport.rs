@@ -1,78 +1,59 @@
-use crate::utils::create_image_from_color;
-use crate::{resources::AppData, settings::MAIN_LAYER, MainCamera};
-use crate::{
-    CanvasMarker, ComputedViewport, FocusViewport, ImageLoading, ImageReady, SelectedImage,
-    TopRightPanelUI, UiCamera, UninitializedRenderTarget,
-};
 use bevy::color::palettes::css::{INDIAN_RED, LIMEGREEN};
 use bevy::prelude::*;
-use bevy::render::camera::{self, RenderTarget, SubCameraView, Viewport};
+use bevy::render::camera::RenderTarget;
 use bevy::render::view;
+use bevy_inspector_egui::egui::viewport;
 use bevy_vector_shapes::{
     prelude::ShapeConfig,
     shapes::{RectangleBundle, ShapeBundle},
 };
-pub const MAGIC_NUMBER_UI: f32 = 10.0;
 
-pub fn test(
+use crate::utils::create_image_from_color;
+use crate::{settings::MAIN_LAYER, MainCamera};
+use crate::{
+    CanvasMarker, ComputedViewport, FocusViewport, TopRightPanelUI, UninitializedRenderTarget,
+};
+
+pub fn compute_viewport(
     mut commands: Commands,
-    window: Query<&Window>,
-    mut main_camera: Query<(&mut Camera, &GlobalTransform), With<MainCamera>>,
-    // mut ui_camera: Query<(&mut Camera, &GlobalTransform), (With<UiCamera>, Without<MainCamera>)>,
+    mut main_camera: Query<&mut Camera, With<MainCamera>>,
+    mut images: ResMut<Assets<Image>>,
     mut viewport: Query<
-        (Entity, &GlobalTransform, &ComputedNode, &mut ImageNode),
+        (Entity, &ComputedNode, &mut ImageNode, &GlobalTransform),
         With<TopRightPanelUI>,
     >,
-    mut images: ResMut<Assets<Image>>,
-    selected_image: Query<&ImageReady, With<ImageReady>>,
     uninitialized_render_target: Query<Entity, With<UninitializedRenderTarget>>,
 ) {
     if uninitialized_render_target.iter().count() == 0 {
         return;
     }
 
-    let (mut main_camera, main_camera_transform) = match main_camera.iter_mut().next() {
-        Some((camera, main_camera_transform)) => (camera, main_camera_transform),
+    let mut main_camera = match main_camera.iter_mut().next() {
+        Some(camera) => camera,
         None => {
             error!("Main camera not found");
             return;
         }
     };
 
-    let (viewport_eid, viewport_transform, viewport_computed_node, mut viewport_image_node) =
+    let (viewport_eid, viewport_computed_node, mut viewport_image_node, viewport_global_transform) =
         match viewport.iter_mut().next() {
             Some((
                 viewport_eid,
-                viewport_transform,
                 viewport_computed_node,
                 viewport_image_node,
+                viewport_global_transform,
             )) => (
                 viewport_eid,
-                viewport_transform,
                 viewport_computed_node,
                 viewport_image_node,
+                viewport_global_transform,
             ),
             None => {
                 error!("Viewport not found");
                 return;
             }
         };
-
-    let window = match window.iter().next() {
-        Some(window) => window,
-        None => {
-            error!("Window not found");
-            return;
-        }
-    };
-
-    let image_ready = match selected_image.iter().next() {
-        Some(image_ready) => image_ready,
-        None => {
-            error!("Selected image not found");
-            return;
-        }
-    };
 
     let uninitialized_render_target_eid = match uninitialized_render_target.iter().next() {
         Some(eid) => eid,
@@ -82,57 +63,30 @@ pub fn test(
         }
     };
 
-    let full_size = window.physical_size();
-    let main_camera_position = main_camera_transform.translation().truncate();
-    let viewport_position = viewport_transform.translation().truncate();
+    let computed_viewport_size = viewport_computed_node.size();
 
-    info!("main_camera_position: {:#?}", main_camera_position);
-    info!("viewport_position: {:#?}", viewport_position);
-
-    // let x_offset = viewport_position.x;
-    // let y_offset = viewport_position.y;
-
-    // let offset = Vec2::new(x_offset, -y_offset);
-
-    let size = viewport_computed_node.size();
-    // let size = size.as_uvec2();
-
-    // info!("offset: {:#?}", offset);
-
-    // main_camera.sub_camera_view = Some(SubCameraView {
-    //     full_size,
-    //     offset,
-    //     size,
-    // });
-
-    let physical_position = UVec2::new(viewport_position.x as u32, viewport_position.y as u32);
-    let physical_size = UVec2::new(size.x as u32, size.y as u32);
-
-    info!("physical_position: {:#?}", physical_position);
-    info!("physical_size: {:#?}", physical_size);
-
-    // let viewport = Some(Viewport {
-    //     physical_position,
-    //     physical_size,
-    //     ..Default::default()
-    // });
-
-    if size.x <= 0.0 || size.y <= 0.0 {
+    if computed_viewport_size.x <= 0.0 || computed_viewport_size.y <= 0.0 {
         error!("Viewport size is invalid");
         return;
     };
 
     let canvas_image = create_image_from_color(
         Color::from(Srgba::new(0.0, 0.0, 0.0, 0.0)),
-        size.x as u32 + 200,
-        size.y as u32,
+        computed_viewport_size.x as u32,
+        computed_viewport_size.y as u32,
     );
 
     let canvas_image_handle = images.add(canvas_image);
     viewport_image_node.image = canvas_image_handle.clone();
     main_camera.target = RenderTarget::Image(viewport_image_node.image.clone());
 
-    info!("Removing UninitializedRenderTarget");
+    let computed_viewport = ComputedViewport {
+        width: computed_viewport_size.x,
+        height: computed_viewport_size.y,
+        translation: viewport_global_transform.translation(),
+    };
+
+    commands.entity(viewport_eid).insert(computed_viewport);
     commands.entity(uninitialized_render_target_eid).despawn();
 }
 
@@ -215,4 +169,44 @@ pub fn debug_viewport(
     );
 
     commands.spawn(debug_canvas_center);
+}
+
+pub fn fit_to_viewport(
+    mut commands: Commands,
+    target: Query<(Entity, &FocusViewport), (Added<FocusViewport>, Without<MainCamera>)>,
+    mut main_camera: Query<&mut OrthographicProjection, With<MainCamera>>,
+    computed_viewport: Query<&ComputedViewport>,
+) {
+    if computed_viewport.iter().count() == 0 {
+        return;
+    }
+
+    if target.iter().count() == 0 {
+        return;
+    }
+
+    let mut projection = main_camera.single_mut();
+    let viewport = computed_viewport.single();
+
+    for (entity, target) in target.iter() {
+        let width_scale_factor = target.width / viewport.width;
+        let height_scale_factor = target.height / viewport.height;
+
+        // Set the camera's projection to fit the larger dimension of the target.
+        debug!(
+            "Width scale factor: {}, Height scale factor: {}",
+            width_scale_factor, height_scale_factor
+        );
+
+        projection.scale = if height_scale_factor > width_scale_factor {
+            debug!("Selected {:#?}", height_scale_factor);
+            height_scale_factor
+        } else {
+            debug!("Selected {:#?}", width_scale_factor);
+            width_scale_factor
+        };
+
+        debug!("Removing FocusViewport");
+        commands.entity(entity).remove::<FocusViewport>();
+    }
 }
