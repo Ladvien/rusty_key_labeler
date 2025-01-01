@@ -5,19 +5,18 @@ use bevy::{
     prelude::{Component, Resource, Transform},
     render::view::RenderLayers,
 };
-
 use bevy_vector_shapes::{
     prelude::ShapeConfig,
     shapes::{RectangleBundle, RectangleComponent, ShapeBundle},
 };
 use hashbrown::HashMap;
 use serde::{Deserialize, Serialize};
-use yolo_io::YoloEntry;
 
 use crate::{
     settings::MAIN_LAYER,
     utils::{scale_dimensions, srgba_string_to_color},
 };
+use yolo_io::YoloEntry;
 
 #[derive(Debug, PartialEq, Clone, Serialize)]
 pub struct BoundingBoxSettings {

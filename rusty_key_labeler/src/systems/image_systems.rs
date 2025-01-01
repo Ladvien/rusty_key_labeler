@@ -5,7 +5,7 @@ use yolo_io::ImageLabelPair;
 
 use crate::utils::{default_hide, default_main_layer};
 use crate::SelectedImage;
-use crate::{ComputedViewport, FocusViewport, ImageReady};
+use crate::{ComputedViewport, FocusInViewport, ImageReady};
 use crate::{DebounceTimer, FileNameLabelUpdateNeeded, ImageLoading, UiLabelingIndexUpdateNeeded};
 
 #[derive(Debug, Clone, Component)]
@@ -102,7 +102,7 @@ pub fn image_state_system(
 
                             commands
                                 .entity(entity)
-                                .insert(FocusViewport { width, height });
+                                .insert(FocusInViewport { width, height });
                         }
                     }
 

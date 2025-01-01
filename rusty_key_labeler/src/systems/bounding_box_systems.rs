@@ -49,13 +49,7 @@ pub fn load_bounding_boxes(
     let mut children = Vec::new();
     let mut ui_items = Vec::new();
 
-    let (selected_image_eid, sprite) = match query.iter().next() {
-        Some((eid, sprite)) => (eid, sprite),
-        None => {
-            error!("Selected image not found");
-            return;
-        }
-    };
+    let (selected_image_eid, sprite) = query.single();
 
     debug!("Selected image: {:?}", sprite.image.id());
 
@@ -83,8 +77,8 @@ pub fn load_bounding_boxes(
                 //
                 debug!("Adding bounding box: {}", index);
                 let bounding_box = bb_painter.get_box(index, entry, image_size);
-                let child_id = commands.spawn(bounding_box).id();
-                children.push(child_id);
+                let bounding_box_id = commands.spawn(bounding_box).id();
+                children.push(bounding_box_id);
 
                 let color = bb_painter.get_color(entry.class);
 

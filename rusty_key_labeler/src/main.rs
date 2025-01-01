@@ -80,11 +80,10 @@ fn main() {
                 image_state_system,
                 translate_image_system,
                 zoom_image_system,
-                // compute_canvas_viewport,
                 fit_to_viewport,
-                // change_bounding_box_selection,
-                // debug_viewport,
+                center_in_viewport,
                 compute_viewport,
+                change_bounding_box_selection,
             )
                 .chain(),
         )

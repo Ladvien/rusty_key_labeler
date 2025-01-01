@@ -2,8 +2,8 @@ use bevy::prelude::*;
 use bevy::render::camera::RenderTarget;
 
 use crate::utils::create_canvas_image;
-use crate::MainCamera;
-use crate::{ComputedViewport, FocusViewport, TopRightPanelUI, UninitializedRenderTarget};
+use crate::{CenterInViewport, MainCamera};
+use crate::{ComputedViewport, FocusInViewport, TopRightPanelUI, UninitializedRenderTarget};
 
 pub fn compute_viewport(
     mut commands: Commands,
@@ -84,7 +84,7 @@ pub fn compute_viewport(
 pub fn fit_to_viewport(
     mut commands: Commands,
     mut main_camera: Query<&mut OrthographicProjection, With<MainCamera>>,
-    target: Query<(Entity, &FocusViewport), (Added<FocusViewport>, Without<MainCamera>)>,
+    target: Query<(Entity, &FocusInViewport), (Added<FocusInViewport>, Without<MainCamera>)>,
     computed_viewport: Query<&ComputedViewport>,
 ) {
     if computed_viewport.iter().count() == 0 {
@@ -117,6 +117,37 @@ pub fn fit_to_viewport(
         };
 
         debug!("Removing FocusViewport");
-        commands.entity(entity).remove::<FocusViewport>();
+        commands.entity(entity).remove::<FocusInViewport>();
+    }
+}
+
+pub fn center_in_viewport(
+    mut commands: Commands,
+    mut main_camera: Query<&mut Transform, With<MainCamera>>,
+    target: Query<(Entity, &mut GlobalTransform), (Added<CenterInViewport>, Without<MainCamera>)>,
+    computed_viewport: Query<&ComputedViewport>,
+) {
+    if computed_viewport.iter().count() == 0 {
+        return;
+    }
+
+    if target.iter().count() == 0 {
+        return;
+    }
+
+    for (entity, target_translation) in target.iter() {
+        for mut camera_transform in main_camera.iter_mut() {
+            info!("Setting camera translation");
+            info!(
+                "Target translation: {:#?}",
+                target_translation.translation()
+            );
+            info!("Camera translation: {:#?}", camera_transform.translation);
+            camera_transform.translation = target_translation.translation();
+            info!("Centering in viewport");
+        }
+
+        info!("Removing FocusViewport");
+        commands.entity(entity).remove::<CenterInViewport>();
     }
 }

@@ -18,10 +18,13 @@ pub struct DebounceTimer {
 }
 
 #[derive(Debug, Clone, Component)]
-pub struct FocusViewport {
+pub struct FocusInViewport {
     pub width: f32,
     pub height: f32,
 }
+
+#[derive(Debug, Clone, Component)]
+pub struct CenterInViewport;
 
 #[derive(Debug, Clone, Default, Component)]
 pub struct CanvasMarker;
