@@ -3,7 +3,7 @@ use crate::{
     resources::AppData,
     CenterInViewport, DebounceTimer, FocusInViewport, MainCamera, SelectedImage,
 };
-use bevy::prelude::*;
+use bevy::{prelude::*, render::camera};
 
 use super::start_image_load;
 
@@ -71,16 +71,16 @@ pub fn translate_image_system(
     for mut main_camera in main_camera.iter_mut() {
         let mut translation = main_camera.translation;
         if keyboard_input.pressed(app_data.config.settings.key_map.pan_up) {
-            translation.y += app_data.config.settings.pan_factor.y * time.delta_secs();
-        }
-        if keyboard_input.pressed(app_data.config.settings.key_map.pan_down) {
             translation.y -= app_data.config.settings.pan_factor.y * time.delta_secs();
         }
+        if keyboard_input.pressed(app_data.config.settings.key_map.pan_down) {
+            translation.y += app_data.config.settings.pan_factor.y * time.delta_secs();
+        }
         if keyboard_input.pressed(app_data.config.settings.key_map.pan_left) {
-            translation.x -= app_data.config.settings.pan_factor.x * time.delta_secs();
+            translation.x += app_data.config.settings.pan_factor.x * time.delta_secs();
         }
         if keyboard_input.pressed(app_data.config.settings.key_map.pan_right) {
-            translation.x += app_data.config.settings.pan_factor.x * time.delta_secs();
+            translation.x -= app_data.config.settings.pan_factor.x * time.delta_secs();
         }
         main_camera.translation = translation;
     }
@@ -106,61 +106,129 @@ pub fn zoom_image_system(
 
 pub fn change_bounding_box_selection(
     mut commands: Commands,
-    mut app_data: ResMut<AppData>,
-    mut main_camera: Query<(Entity, &GlobalTransform, &Sprite), With<MainCamera>>,
-    mut selected_image: Query<&mut SelectedImage>,
+    app_data: ResMut<AppData>,
+    selected_image: Query<(Entity, &Sprite, &SelectedImage)>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
     bounding_boxes: Query<(Entity, &BoundingBox)>,
-    selected_bounding_box: Query<
-        (Entity, &GlobalTransform, &BoundingBox),
-        With<SelectedBoundingBox>,
-    >,
+    selected_bounding_box: Query<(Entity, &BoundingBox), With<SelectedBoundingBox>>,
+    images: Res<Assets<Image>>,
 ) {
+    // Behavior
+    // Upon tab key press
+    // 1. Collect all bounding boxes and sort them by index.
+    // 2. Check if any bounding box is selected.
+    //      1. If no, select the first bounding box.
+    // 3. If a bounding box is selected, select the next bounding box.
+    // 4. If last bounding box is selected, clear all selected bounding boxes
+    //    and fit the viewport to the image.
+
     // Change on tab press
     if keyboard_input.just_pressed(app_data.config.settings.key_map.change_selection) {
-        info!("Changing selection");
+        // Collect bounding boxes and sort them by index
+        let mut ordered_bounding_boxes: Vec<(Entity, &BoundingBox)> =
+            bounding_boxes.iter().collect();
+        ordered_bounding_boxes.sort_by_key(|(_, bounding_box)| bounding_box.index);
 
-        for (index, (bounding_box_entity, bounding_box)) in bounding_boxes.iter().enumerate() {
-            if index == 0 {
-                info!("Selecting first bounding box");
-                commands
-                    .entity(bounding_box_entity)
-                    .insert(SelectedBoundingBox)
-                    .insert(FocusInViewport {
-                        width: bounding_box.width,
-                        height: bounding_box.height,
-                    })
-                    .insert(CenterInViewport);
-                return;
+        // Check if any bounding box is selected.
+        match selected_bounding_box.iter().next() {
+            Some((selected_bb_entity, selected_bounding_box)) => {
+                // Increment the index to get the next bounding box
+                let next_index = selected_bounding_box.index + 1;
+                if next_index >= ordered_bounding_boxes.len() {
+                    reset_bounding_box_selection(
+                        commands,
+                        images,
+                        selected_bb_entity,
+                        selected_image,
+                    );
+                    return;
+                }
+
+                let new_selected_bounding_box = ordered_bounding_boxes
+                    .iter()
+                    .find(|(_, bounding_box)| bounding_box.index == next_index);
+
+                if let Some((new_bb_entity, new_bounding_box)) = new_selected_bounding_box {
+                    select_initial_bounding_box(
+                        commands,
+                        new_bb_entity,
+                        new_bounding_box,
+                        selected_bb_entity,
+                    );
+                } else {
+                    panic!("No bounding box found with index: {}", next_index);
+                }
             }
-        }
+            None => {
+                // Since no bounding box is selected, select the first bounding box
+                let first_bounding_box = ordered_bounding_boxes.first();
 
-        // // Checking if any bounding box is selected
-        // let selected = match selected_bounding_box.iter().next() {
-        //     Some((entity, _, _)) => entity,
-        //     None => {
-        //         // If no bounding box is selected, select the first one
-        //         if let Some((entity, bounding_box)) = bounding_boxes.iter().next() {
-        //             info!("Selecting first bounding box");
-        //             info!("Bounding box: {:#?}", bounding_box);
-        //             commands.entity(entity).insert(FocusInViewport {
-        //                 width: bounding_box.width,
-        //                 height: bounding_box.height,
-        //             });
-        //             return;
-        //         } else {
-        //             info!("No bounding boxes to select");
-        //             return;
-        //         };
-        //     }
-        // };
-
-        // for (eid, bounding_box) in bounding_boxes.iter() {
-        //     info!("Bounding box: {:#?}", bounding_box);
-        // }
-
-        // for (entity, _, _) in selected_bounding_box.iter() {
-        //     commands.entity(entity).remove::<SelectedBoundingBox>();
-        // }
+                match first_bounding_box {
+                    Some((bounding_box_entity, bounding_box)) => {
+                        info!("Selecting first bounding box");
+                        commands
+                            .entity(*bounding_box_entity)
+                            .insert(SelectedBoundingBox)
+                            .insert(FocusInViewport {
+                                width: bounding_box.width,
+                                height: bounding_box.height,
+                            })
+                            .insert(CenterInViewport);
+                    }
+                    None => {
+                        info!("No bounding boxes to select");
+                    }
+                };
+            }
+        };
     }
+}
+
+fn select_initial_bounding_box(
+    mut commands: Commands,
+    new_bb_entity: &Entity,
+    new_bounding_box: &BoundingBox,
+    selected_bb_entity: Entity,
+) {
+    // Clear all selected bounding boxes
+    commands
+        .entity(selected_bb_entity)
+        .remove::<SelectedBoundingBox>();
+
+    // Set the new bounding box as selected
+    commands
+        .entity(*new_bb_entity)
+        .insert(SelectedBoundingBox)
+        .insert(FocusInViewport {
+            width: new_bounding_box.width,
+            height: new_bounding_box.height,
+        })
+        .insert(CenterInViewport);
+}
+fn reset_bounding_box_selection(
+    mut commands: Commands,
+    images: Res<Assets<Image>>,
+    selected_bb_entity: Entity,
+    selected_image: Query<(Entity, &Sprite, &SelectedImage)>,
+) {
+    // Clear all selected bounding boxes
+    commands
+        .entity(selected_bb_entity)
+        .remove::<SelectedBoundingBox>();
+
+    // Fit the viewport to the image
+    let (selected_image_entity, sprite, _) = selected_image.single();
+
+    let image = images.get(&sprite.image).unwrap();
+
+    commands
+        .entity(selected_image_entity)
+        .insert(FocusInViewport {
+            width: image.width() as f32,
+            height: image.height() as f32,
+        });
+
+    commands
+        .entity(selected_image_entity)
+        .insert(CenterInViewport);
 }

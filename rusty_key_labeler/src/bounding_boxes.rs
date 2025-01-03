@@ -67,7 +67,7 @@ impl<'de> Deserialize<'de> for BoundingBoxSettings {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize, Component)]
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize, Component, PartialOrd)]
 pub struct BoundingBox {
     pub index: usize,
     pub class: String,

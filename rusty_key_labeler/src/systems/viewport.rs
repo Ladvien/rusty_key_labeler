@@ -137,17 +137,17 @@ pub fn center_in_viewport(
 
     for (entity, target_translation) in target.iter() {
         for mut camera_transform in main_camera.iter_mut() {
-            info!("Setting camera translation");
-            info!(
+            debug!("Setting camera translation");
+            debug!(
                 "Target translation: {:#?}",
                 target_translation.translation()
             );
-            info!("Camera translation: {:#?}", camera_transform.translation);
+            debug!("Camera translation: {:#?}", camera_transform.translation);
             camera_transform.translation = target_translation.translation();
-            info!("Centering in viewport");
+            debug!("Centering in viewport");
         }
 
-        info!("Removing FocusViewport");
+        debug!("Removing FocusViewport");
         commands.entity(entity).remove::<CenterInViewport>();
     }
 }
