@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy::render::camera::RenderTarget;
 
 use crate::utils::create_canvas_image;
-use crate::{CenterInViewport, MainCamera};
+use crate::{AppData, CenterInViewport, MainCamera};
 use crate::{ComputedViewport, FocusInViewport, TopRightPanelUI, UninitializedRenderTarget};
 
 pub fn compute_viewport(
@@ -86,6 +86,7 @@ pub fn fit_to_viewport(
     mut main_camera: Query<&mut OrthographicProjection, With<MainCamera>>,
     target: Query<(Entity, &FocusInViewport), (Added<FocusInViewport>, Without<MainCamera>)>,
     computed_viewport: Query<&ComputedViewport>,
+    app_data: Res<AppData>,
 ) {
     if computed_viewport.iter().count() == 0 {
         return;
@@ -98,9 +99,13 @@ pub fn fit_to_viewport(
     let mut projection = main_camera.single_mut();
     let viewport = computed_viewport.single();
 
+    let padding = app_data.config.settings.fit_padding_px;
+    let viewport_padded_width = viewport.width - padding;
+    let viewport_padded_height = viewport.height - padding;
+
     for (entity, target) in target.iter() {
-        let width_scale_factor = target.width / viewport.width;
-        let height_scale_factor = target.height / viewport.height;
+        let width_scale_factor = target.width / viewport_padded_width;
+        let height_scale_factor = target.height / viewport_padded_height;
 
         // Set the camera's projection to fit the larger dimension of the target.
         debug!(

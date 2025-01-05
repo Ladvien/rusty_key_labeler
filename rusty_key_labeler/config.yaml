@@ -40,6 +40,7 @@ settings:
       - (0, 0, 255, 255)
 
   delay_between_images: 0.1
+  fit_padding_px: 200.0                    # Padding around objects fitted to the viewport
 
   ui_panel:
     font: "RobotoMono-Regular.ttf"
@@ -50,12 +51,11 @@ settings:
       inner_border: (74, 174, 214, 255)   # Calm sky blue
       outer_border: (84, 214, 148, 255)   # Vibrant mint green
       
-    top_left_position:
-      x: 0
-      y: 0
     size:
       width_percentage: 0.2
       height_percentage: 0.1
+
+    
 
   key_map:
     zoom_in: 'KeyE'

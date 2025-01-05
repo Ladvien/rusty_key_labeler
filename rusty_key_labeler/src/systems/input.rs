@@ -4,6 +4,7 @@ use crate::{
     CenterInViewport, DebounceTimer, FocusInViewport, MainCamera, SelectedImage,
 };
 use bevy::{prelude::*, render::camera};
+use itertools::Itertools;
 
 use super::start_image_load;
 
@@ -125,62 +126,58 @@ pub fn change_bounding_box_selection(
     // Change on tab press
     if keyboard_input.just_pressed(app_data.config.settings.key_map.change_selection) {
         // Collect bounding boxes and sort them by index
-        let mut ordered_bounding_boxes: Vec<(Entity, &BoundingBox)> =
-            bounding_boxes.iter().collect();
-        ordered_bounding_boxes.sort_by_key(|(_, bounding_box)| bounding_box.index);
+        let ordered_bounding_boxes: Vec<(Entity, &BoundingBox)> = bounding_boxes
+            .iter()
+            .sorted_by_key(|(_, bounding_box)| bounding_box.index)
+            .collect();
 
         // Check if any bounding box is selected.
-        match selected_bounding_box.iter().next() {
-            Some((selected_bb_entity, selected_bounding_box)) => {
-                // Increment the index to get the next bounding box
-                let next_index = selected_bounding_box.index + 1;
-                if next_index >= ordered_bounding_boxes.len() {
-                    reset_bounding_box_selection(
-                        commands,
-                        images,
-                        selected_bb_entity,
-                        selected_image,
-                    );
-                    return;
-                }
 
-                let new_selected_bounding_box = ordered_bounding_boxes
-                    .iter()
-                    .find(|(_, bounding_box)| bounding_box.index == next_index);
-
-                if let Some((new_bb_entity, new_bounding_box)) = new_selected_bounding_box {
-                    select_initial_bounding_box(
-                        commands,
-                        new_bb_entity,
-                        new_bounding_box,
-                        selected_bb_entity,
-                    );
-                } else {
-                    panic!("No bounding box found with index: {}", next_index);
-                }
+        if let Some((selected_bb_entity, selected_bounding_box)) =
+            selected_bounding_box.iter().next()
+        {
+            // Increment the index to get the next bounding box
+            let next_index = selected_bounding_box.index + 1;
+            if next_index >= ordered_bounding_boxes.len() {
+                reset_bounding_box_selection(commands, images, selected_bb_entity, selected_image);
+                return;
             }
-            None => {
-                // Since no bounding box is selected, select the first bounding box
-                let first_bounding_box = ordered_bounding_boxes.first();
 
-                match first_bounding_box {
-                    Some((bounding_box_entity, bounding_box)) => {
-                        info!("Selecting first bounding box");
-                        commands
-                            .entity(*bounding_box_entity)
-                            .insert(SelectedBoundingBox)
-                            .insert(FocusInViewport {
-                                width: bounding_box.width,
-                                height: bounding_box.height,
-                            })
-                            .insert(CenterInViewport);
-                    }
-                    None => {
-                        info!("No bounding boxes to select");
-                    }
-                };
+            let new_selected_bounding_box = ordered_bounding_boxes
+                .iter()
+                .find(|(_, bounding_box)| bounding_box.index == next_index);
+
+            if let Some((new_bb_entity, new_bounding_box)) = new_selected_bounding_box {
+                select_initial_bounding_box(
+                    commands,
+                    new_bb_entity,
+                    new_bounding_box,
+                    selected_bb_entity,
+                );
+            } else {
+                panic!("No bounding box found with index: {}", next_index);
             }
-        };
+        } else {
+            // Since no bounding box is selected, select the first bounding box
+            let first_bounding_box = ordered_bounding_boxes.first();
+
+            match first_bounding_box {
+                Some((bounding_box_entity, bounding_box)) => {
+                    info!("Selecting first bounding box");
+                    commands
+                        .entity(*bounding_box_entity)
+                        .insert(SelectedBoundingBox)
+                        .insert(FocusInViewport {
+                            width: bounding_box.width,
+                            height: bounding_box.height,
+                        })
+                        .insert(CenterInViewport);
+                }
+                None => {
+                    info!("No bounding boxes to select");
+                }
+            };
+        }
     }
 }
 
@@ -205,6 +202,7 @@ fn select_initial_bounding_box(
         })
         .insert(CenterInViewport);
 }
+
 fn reset_bounding_box_selection(
     mut commands: Commands,
     images: Res<Assets<Image>>,

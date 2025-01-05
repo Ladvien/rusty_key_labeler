@@ -25,3 +25,13 @@ pub struct Config {
     #[serde(default)]
     pub settings: Settings,
 }
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            project_config: YoloProjectConfig::default(),
+            output_path: "output".to_string(),
+            settings: Settings::default(),
+        }
+    }
+}

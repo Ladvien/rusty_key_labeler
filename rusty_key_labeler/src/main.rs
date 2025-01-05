@@ -15,30 +15,28 @@ use resources::*;
 use systems::*;
 use yolo_io::YoloProject;
 
-fn main() {
-    // Load YAML configuration file from file.
-    // https://github.com/sebastienrousseau/serde_yml
-    let data =
-        std::fs::read_to_string("rusty_key_labeler/config.yaml").expect("Unable to read file");
-    let config: Config = serde_yml::from_str(&data).expect("Unable to parse YAML");
-    let project = YoloProject::new(&config.project_config).expect("Unable to create project");
+struct AppInputs {
+    pub config: Config,
+    pub settings: String,
+    pub bounding_box_painter: BoundingBoxPainter,
+    pub ui: Ui,
+    pub app_data: AppData,
+}
 
-    // let report = YoloDataQualityReport::generate(project.clone().unwrap());
-
-    // match report {
-    //     Some(report) => {
-    //         let mut file = fs::File::create("report.json").expect("Unable to create file");
-    //         file.write_all(report.as_bytes())
-    //             .expect("Unable to write data to file");
-    //     }
-    //     None => todo!(),
-    // }
-
-    // let project_resource = YoloProjectResource(project.unwrap());
+fn prepare_app_inputs(path: &str) -> Result<AppInputs, Box<dyn std::error::Error>> {
+    let data = std::fs::read_to_string(path)?;
+    let config: Config = serde_yml::from_str(&data)?;
+    let project = YoloProject::new(&config.project_config)?;
 
     let bb_painter = BoundingBoxPainter::new(
         &config.settings.bounding_boxes,
         &config.project_config.export.class_map,
+    );
+
+    let ui = Ui::new(
+        &config.settings.ui_panel.colors,
+        config.settings.ui_panel.font_size,
+        &config.settings.ui_panel.font_path,
     );
 
     let app_data = AppData {
@@ -49,43 +47,56 @@ fn main() {
         left_panel_eid: None,
     };
 
-    // let font = "RobotoMono-Regular.ttf";
-    // let font_size = 16.0;
-    let ui = Ui::new(
-        &config.settings.ui_panel.colors,
-        config.settings.ui_panel.font_size,
-        &config.settings.ui_panel.font_path,
-    );
+    Ok(AppInputs {
+        config,
+        settings: data,
+        bounding_box_painter: bb_painter,
+        ui,
+        app_data,
+    })
+}
 
-    App::new()
-        .init_resource::<Assets<ColorMaterial>>()
-        .add_plugins((
-            DefaultPlugins.set(ImagePlugin::default_nearest()), // Makes images crisp
-            WorldInspectorPlugin::new(),
-            Shape2dPlugin::default(),
-            BevyUiViewsPlugin,
-        ))
-        .insert_resource(bb_painter)
-        .insert_resource(app_data)
-        .insert_resource(ui)
-        .add_systems(Startup, (setup,))
-        .add_systems(
-            Update,
-            (
-                image_selection_system,
-                load_bounding_boxes,
-                update_labeling_index,
-                update_current_file_name_label,
-                debounce_timer_system,
-                image_state_system,
-                translate_image_system,
-                zoom_image_system,
-                fit_to_viewport,
-                center_in_viewport,
-                compute_viewport,
-                change_bounding_box_selection,
-            )
-                .chain(),
-        )
-        .run();
+fn main() {
+    // Load YAML configuration file from file.
+    // https://github.com/sebastienrousseau/serde_yml
+
+    match prepare_app_inputs("rusty_key_labeler/config.yaml") {
+        Ok(app_inputs) => {
+            App::new()
+                .init_resource::<Assets<ColorMaterial>>()
+                .add_plugins((
+                    DefaultPlugins.set(ImagePlugin::default_nearest()), // Makes images crisp
+                    WorldInspectorPlugin::new(),
+                    Shape2dPlugin::default(),
+                    BevyUiViewsPlugin,
+                ))
+                .insert_resource(app_inputs.bounding_box_painter)
+                .insert_resource(app_inputs.app_data)
+                .insert_resource(app_inputs.ui)
+                .add_systems(Startup, (setup,))
+                .add_systems(
+                    Update,
+                    (
+                        image_selection_system,
+                        load_bounding_boxes,
+                        update_labeling_index,
+                        update_current_file_name_label,
+                        debounce_timer_system,
+                        image_state_system,
+                        translate_image_system,
+                        zoom_image_system,
+                        fit_to_viewport,
+                        center_in_viewport,
+                        compute_viewport,
+                        change_bounding_box_selection,
+                        highlight_bounding_box,
+                    )
+                        .chain(),
+                )
+                .run();
+        }
+        Err(e) => {
+            // TODO: Add error app here.
+        }
+    }
 }

@@ -27,16 +27,30 @@ pub struct KeyMap {
     pub change_selection: KeyCode,
 }
 
+impl Default for KeyMap {
+    fn default() -> Self {
+        Self {
+            zoom_in: KeyCode::KeyE,
+            zoom_out: KeyCode::KeyQ,
+            pan_up: KeyCode::KeyW,
+            pan_down: KeyCode::KeyS,
+            pan_left: KeyCode::KeyA,
+            pan_right: KeyCode::KeyD,
+            change_selection: KeyCode::Tab,
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize)]
 pub struct PanFactor {
     pub x: f32,
     pub y: f32,
 }
 
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
-pub struct TopLeftPosition {
-    pub x: i32,
-    pub y: i32,
+impl Default for PanFactor {
+    fn default() -> Self {
+        Self { x: 550.0, y: 550.0 }
+    }
 }
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
@@ -45,12 +59,32 @@ pub struct UiPanelSize {
     pub height_percentage: f32,
 }
 
+impl Default for UiPanelSize {
+    fn default() -> Self {
+        Self {
+            width_percentage: 0.2,
+            height_percentage: 0.1,
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Clone, Serialize, Resource)]
 pub struct UiColors {
     pub background: Color,
     pub text: Color,
     pub inner_border: Color,
     pub outer_border: Color,
+}
+
+impl Default for UiColors {
+    fn default() -> Self {
+        Self {
+            background: UI_BACKGROUND_COLOR,
+            text: UI_TEXT_COLOR,
+            inner_border: UI_INNER_BORDER_COLOR,
+            outer_border: UI_OUTER_BORDER_COLOR,
+        }
+    }
 }
 
 impl<'de> Deserialize<'de> for UiColors {
@@ -82,12 +116,22 @@ impl<'de> Deserialize<'de> for UiColors {
 
 #[derive(Debug, PartialEq, Clone, Serialize)]
 pub struct UiPanelSettings {
-    pub top_left_position: TopLeftPosition,
     pub colors: UiColors,
     #[serde(rename = "size")]
     pub size: UiPanelSize,
     pub font_size: f32,
     pub font_path: String,
+}
+
+impl Default for UiPanelSettings {
+    fn default() -> Self {
+        Self {
+            size: UiPanelSize::default(),
+            colors: UiColors::default(),
+            font_size: 16.0,
+            font_path: "RobotoMono-Regular.ttf".to_string(),
+        }
+    }
 }
 
 impl<'de> Deserialize<'de> for UiPanelSettings {
@@ -97,22 +141,14 @@ impl<'de> Deserialize<'de> for UiPanelSettings {
     {
         #[derive(Debug, Deserialize)]
         struct UiPanelSettingsHelper {
-            size: Option<UiPanelSize>,
             colors: UiColors,
-            top_left_position: Option<TopLeftPosition>,
         }
 
         let helper = UiPanelSettingsHelper::deserialize(deserializer)?;
 
         let ui_panel_settings = UiPanelSettings {
-            size: helper.size.unwrap_or(UiPanelSize {
-                width_percentage: 0.2,
-                height_percentage: 0.2,
-            }),
+            size: UiPanelSize::default(),
             colors: helper.colors,
-            top_left_position: helper
-                .top_left_position
-                .unwrap_or(TopLeftPosition { x: 0, y: 0 }),
             font_size: 16.0,
             font_path: "RobotoMono-Regular.ttf".to_string(),
         };
@@ -129,26 +165,7 @@ pub struct Settings {
     pub bounding_boxes: BoundingBoxSettings,
     pub ui_panel: UiPanelSettings,
     pub delay_between_images: f32,
-}
-
-impl Default for KeyMap {
-    fn default() -> Self {
-        Self {
-            zoom_in: KeyCode::Equal,
-            zoom_out: KeyCode::Minus,
-            pan_up: KeyCode::KeyW,
-            pan_down: KeyCode::KeyS,
-            pan_left: KeyCode::KeyA,
-            pan_right: KeyCode::KeyD,
-            change_selection: KeyCode::Tab,
-        }
-    }
-}
-
-impl Default for PanFactor {
-    fn default() -> Self {
-        Self { x: 120.0, y: 120.0 }
-    }
+    pub fit_padding_px: f32,
 }
 
 impl Default for Settings {
@@ -158,22 +175,9 @@ impl Default for Settings {
             pan_factor: PanFactor::default(),
             key_map: KeyMap::default(),
             bounding_boxes: BoundingBoxSettings::default(),
-            ui_panel: UiPanelSettings {
-                size: UiPanelSize {
-                    width_percentage: 0.2,
-                    height_percentage: 0.2,
-                },
-                colors: UiColors {
-                    background: UI_BACKGROUND_COLOR,
-                    text: UI_TEXT_COLOR,
-                    inner_border: UI_INNER_BORDER_COLOR,
-                    outer_border: UI_OUTER_BORDER_COLOR,
-                },
-                top_left_position: TopLeftPosition { x: 0, y: 0 },
-                font_size: 16.0,
-                font_path: "RobotoMono-Regular.ttf".to_string(),
-            },
+            ui_panel: UiPanelSettings::default(),
             delay_between_images: 0.1,
+            fit_padding_px: 20.0,
         }
     }
 }
@@ -238,7 +242,6 @@ mod tests {
                         inner_border: UI_INNER_BORDER_COLOR,
                         outer_border: UI_OUTER_BORDER_COLOR
                     },
-                    top_left_position: TopLeftPosition { x: 0, y: 0 },
                     size: UiPanelSize {
                         width_percentage: 0.2,
                         height_percentage: 0.2
@@ -247,6 +250,7 @@ mod tests {
                     font_path: "RobotoMono-Regular.ttf".to_string()
                 },
                 delay_between_images: 0.1,
+                fit_padding_px: 20.0,
             }
         );
     }

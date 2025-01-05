@@ -67,14 +67,23 @@ impl<'de> Deserialize<'de> for BoundingBoxSettings {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize, Component, PartialOrd)]
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize, Component)]
 pub struct BoundingBox {
     pub index: usize,
     pub class: String,
+    pub class_color: Color,
     pub x: f32,
     pub y: f32,
     pub width: f32,
     pub height: f32,
+}
+
+impl PartialOrd for BoundingBox {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        let order_value = (self.width * 1000.0 + self.height * 1000.0) as usize;
+        let other_order_value = (other.width * 1000.0 + other.height * 1000.0) as usize;
+        Some(order_value.cmp(&other_order_value))
+    }
 }
 
 #[derive(Debug, PartialEq, Clone, Component)]
@@ -147,6 +156,7 @@ impl BoundingBoxPainter {
             BoundingBox {
                 index,
                 class: self.class_map[&entry.class].clone(),
+                class_color: Color::from(class_color),
                 x: scaled_x_center,
                 y: scaled_y_center,
                 width: scaled_width,

@@ -1,11 +1,15 @@
-use bevy::prelude::*;
+use bevy::{math::VectorSpace, prelude::*};
 use bevy_ui_views::VStackUpdatedItems;
+use bevy_vector_shapes::{
+    prelude::ShapeConfig,
+    shapes::{DiscBundle, RectangleComponent, ShapeBundle, ShapeFill},
+};
 use itertools::Itertools;
 
 use crate::{
-    bounding_boxes::{BoundingBoxPainter, ContainsBoundingBoxes},
+    bounding_boxes::{BoundingBox, BoundingBoxPainter, ContainsBoundingBoxes, SelectedBoundingBox},
     resources::AppData,
-    utils::create_image_from_color,
+    utils::{create_image_from_color, scale_dimensions},
     ImageReady, SelectedImage, Ui,
 };
 
@@ -111,5 +115,140 @@ pub fn load_bounding_boxes(
     if !children.is_empty() {
         debug!("Adding children to selected image");
         commands.entity(selected_image_eid).add_children(&children);
+    }
+}
+
+#[derive(Debug, Component, PartialEq)]
+pub struct CornerHandles {
+    pub top_left: Vec2,
+    pub top_right: Vec2,
+    pub bottom_left: Vec2,
+    pub bottom_right: Vec2,
+}
+
+#[derive(Debug, Component, PartialEq)]
+pub struct CornerHandle {
+    x: f32,
+    y: f32,
+}
+
+pub fn highlight_bounding_box(
+    mut commands: Commands,
+    mut selected_bounding_box: Query<
+        (
+            Entity,
+            &BoundingBox,
+            &mut ShapeFill,
+            &mut RectangleComponent,
+            &mut Transform,
+        ),
+        With<SelectedBoundingBox>,
+    >,
+    target_image: Query<
+        &Sprite,
+        (
+            With<SelectedImage>,
+            With<ImageReady>,
+            With<ContainsBoundingBoxes>,
+        ),
+    >,
+    images: ResMut<Assets<Image>>,
+    bb_painter: Res<BoundingBoxPainter>,
+) {
+    if target_image.iter().count() == 0 {
+        error!("No target image.");
+        return;
+    }
+
+    let target_image = images.get(&target_image.single().image).unwrap();
+
+    for (selected_bb_eid, bounding_box, mut shape_fill, mut rect, mut transform) in
+        selected_bounding_box.iter_mut()
+    {
+        info!("Highlighting bounding box: {:?}", bounding_box.index);
+        info!("Color: {:?}", shape_fill.color);
+        info!("Rect: {:?}", rect.size);
+        info!("Transform: {:?}", transform.translation);
+
+        let (scaled_x_center, scaled_y_center, scaled_width, scaled_height) = scale_dimensions(
+            transform.translation.x,
+            transform.translation.y,
+            rect.size.x,
+            rect.size.y,
+            Vec2::new(target_image.width() as f32, target_image.height() as f32),
+        );
+
+        let handle_size = 20.0;
+        let half_handle_size = handle_size / 2.0;
+        let half_width = scaled_width / 2.0;
+        let half_height = scaled_height / 2.0;
+
+        let top_left = Vec2::new(
+            scaled_x_center - half_width + half_handle_size,
+            scaled_y_center - half_height + half_handle_size,
+        );
+
+        let top_right = Vec2::new(scaled_x_center + half_width, scaled_y_center - half_height);
+
+        let bottom_left = Vec2::new(scaled_x_center - half_width, scaled_y_center + half_height);
+
+        let bottom_right = Vec2::new(scaled_x_center + half_width, scaled_y_center + half_height);
+
+        let handles = [top_left, top_right, bottom_right, bottom_left];
+
+        info!("{:#?}", handles);
+
+        commands.entity(selected_bb_eid).despawn_descendants();
+
+        for (index, handle) in handles.iter().enumerate() {
+            let handle_component = (
+                Name::new(format!("handle_{}", index)),
+                ShapeBundle::circle(
+                    &ShapeConfig {
+                        color: bounding_box.class_color,
+                        transform: Transform::from_translation(handle.extend(0.0)),
+                        hollow: true,
+                        thickness: bb_painter.bounding_box_settings.thickness,
+                        corner_radii: Vec4::splat(bb_painter.bounding_box_settings.corner_radius),
+                        ..ShapeConfig::default_2d()
+                    },
+                    handle_size,
+                ),
+            );
+
+            let handle_component_id = commands.spawn(handle_component).id();
+            commands
+                .entity(selected_bb_eid)
+                .add_child(handle_component_id);
+        }
+
+        // let box_handles = CornerHandles {
+        //     top_left,
+        //     top_right,
+        //     bottom_left,
+        //     bottom_right,
+        // };
+
+        // let handles = commands.spawn(box_handles).id();
+        // commands.entity(bb_eid).add_child(handles);
+
+        /////////////////////////////////////////////
+        // mut alpha_descending: Local<bool>,
+        // time: Res<Time>,
+        // Throbbing color system
+        // let mut alpha = shape_fill.color.alpha();
+        // if alpha > 0.9 {
+        //     *alpha_descending = true;
+        // } else if alpha < 0.25 {
+        //     *alpha_descending = false;
+        // }
+
+        // if *alpha_descending {
+        //     alpha -= 0.75 * time.delta_secs();
+        // } else {
+        //     alpha += 0.75 * time.delta_secs();
+        // }
+        // shape_fill.color.set_alpha(alpha);
+        /////////////////////////////////////////////
     }
 }
