@@ -1,4 +1,4 @@
-use bevy::{math::VectorSpace, prelude::*};
+use bevy::prelude::*;
 use bevy_ui_views::VStackUpdatedItems;
 use bevy_vector_shapes::{
     prelude::ShapeConfig,
@@ -9,7 +9,7 @@ use itertools::Itertools;
 use crate::{
     bounding_boxes::{BoundingBox, BoundingBoxPainter, ContainsBoundingBoxes, SelectedBoundingBox},
     resources::AppData,
-    utils::{create_image_from_color, scale_dimensions},
+    utils::create_image_from_color,
     ImageReady, SelectedImage, Ui,
 };
 
@@ -80,8 +80,9 @@ pub fn load_bounding_boxes(
             {
                 //
                 debug!("Adding bounding box: {}", index);
-                let bounding_box = bb_painter.get_box(index, entry, image_size);
-                let bounding_box_id = commands.spawn(bounding_box).id();
+                let bounding_box_id =
+                    bb_painter.spawn_bounding_box(&mut commands, index, entry, image_size);
+
                 children.push(bounding_box_id);
 
                 let color = bb_painter.get_color(entry.class);
@@ -126,87 +127,63 @@ pub struct CornerHandles {
     pub bottom_right: Vec2,
 }
 
-#[derive(Debug, Component, PartialEq)]
+#[derive(Debug, Clone, Component, PartialEq)]
 pub struct CornerHandle {
-    x: f32,
-    y: f32,
+    pub name: String,
+    pub position: Vec2,
 }
 
 pub fn highlight_bounding_box(
     mut commands: Commands,
+    corner_handles: Query<Entity, With<CornerHandle>>,
     mut selected_bounding_box: Query<
-        (
-            Entity,
-            &BoundingBox,
-            &mut ShapeFill,
-            &mut RectangleComponent,
-            &mut Transform,
-        ),
+        (Entity, &BoundingBox, &mut RectangleComponent),
         With<SelectedBoundingBox>,
     >,
-    target_image: Query<
-        &Sprite,
-        (
-            With<SelectedImage>,
-            With<ImageReady>,
-            With<ContainsBoundingBoxes>,
-        ),
-    >,
-    images: ResMut<Assets<Image>>,
     bb_painter: Res<BoundingBoxPainter>,
+    app_data: Res<AppData>,
+    mut alpha_descending: Local<bool>,
+    time: Res<Time>,
 ) {
-    if target_image.iter().count() == 0 {
-        error!("No target image.");
+    if corner_handles.iter().count() > 0 {
         return;
     }
 
-    let target_image = images.get(&target_image.single().image).unwrap();
+    for (selected_bb_eid, bounding_box, rect) in selected_bounding_box.iter_mut() {
+        let handle_size = app_data.config.settings.bounding_boxes.handle_size;
 
-    for (selected_bb_eid, bounding_box, mut shape_fill, mut rect, mut transform) in
-        selected_bounding_box.iter_mut()
-    {
-        info!("Highlighting bounding box: {:?}", bounding_box.index);
-        info!("Color: {:?}", shape_fill.color);
-        info!("Rect: {:?}", rect.size);
-        info!("Transform: {:?}", transform.translation);
+        // Offset handles.
+        let top_left = CornerHandle {
+            name: String::from("top_left"),
+            position: Vec2::new(-1.0 * (rect.size.x / 2.0), rect.size.y / 2.0),
+        };
 
-        let (scaled_x_center, scaled_y_center, scaled_width, scaled_height) = scale_dimensions(
-            transform.translation.x,
-            transform.translation.y,
-            rect.size.x,
-            rect.size.y,
-            Vec2::new(target_image.width() as f32, target_image.height() as f32),
-        );
+        let top_right = CornerHandle {
+            name: String::from("top_right"),
+            position: Vec2::new(rect.size.x / 2.0, rect.size.y / 2.0),
+        };
 
-        let handle_size = 20.0;
-        let half_handle_size = handle_size / 2.0;
-        let half_width = scaled_width / 2.0;
-        let half_height = scaled_height / 2.0;
+        let bottom_left = CornerHandle {
+            name: String::from("bottom_left"),
+            position: Vec2::new(-1.0 * (rect.size.x / 2.0), -1.0 * (rect.size.y / 2.0)),
+        };
 
-        let top_left = Vec2::new(
-            scaled_x_center - half_width + half_handle_size,
-            scaled_y_center - half_height + half_handle_size,
-        );
+        let bottom_right = CornerHandle {
+            name: String::from("bottom_right"),
+            position: Vec2::new(rect.size.x / 2.0, -1.0 * (rect.size.y / 2.0)),
+        };
 
-        let top_right = Vec2::new(scaled_x_center + half_width, scaled_y_center - half_height);
-
-        let bottom_left = Vec2::new(scaled_x_center - half_width, scaled_y_center + half_height);
-
-        let bottom_right = Vec2::new(scaled_x_center + half_width, scaled_y_center + half_height);
-
-        let handles = [top_left, top_right, bottom_right, bottom_left];
-
-        info!("{:#?}", handles);
+        let handles = [top_left, top_right, bottom_left, bottom_right];
 
         commands.entity(selected_bb_eid).despawn_descendants();
 
-        for (index, handle) in handles.iter().enumerate() {
+        for handle in handles.iter() {
             let handle_component = (
-                Name::new(format!("handle_{}", index)),
+                Name::new(handle.name.clone()),
                 ShapeBundle::circle(
                     &ShapeConfig {
                         color: bounding_box.class_color,
-                        transform: Transform::from_translation(handle.extend(0.0)),
+                        transform: Transform::from_translation(handle.position.extend(0.0)),
                         hollow: true,
                         thickness: bb_painter.bounding_box_settings.thickness,
                         corner_radii: Vec4::splat(bb_painter.bounding_box_settings.corner_radius),
@@ -214,6 +191,7 @@ pub fn highlight_bounding_box(
                     },
                     handle_size,
                 ),
+                handle.clone(),
             );
 
             let handle_component_id = commands.spawn(handle_component).id();
@@ -233,8 +211,6 @@ pub fn highlight_bounding_box(
         // commands.entity(bb_eid).add_child(handles);
 
         /////////////////////////////////////////////
-        // mut alpha_descending: Local<bool>,
-        // time: Res<Time>,
         // Throbbing color system
         // let mut alpha = shape_fill.color.alpha();
         // if alpha > 0.9 {

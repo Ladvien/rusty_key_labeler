@@ -66,7 +66,7 @@ fn main() {
                 .init_resource::<Assets<ColorMaterial>>()
                 .add_plugins((
                     DefaultPlugins.set(ImagePlugin::default_nearest()), // Makes images crisp
-                    WorldInspectorPlugin::new(),
+                    // WorldInspectorPlugin::new(),
                     Shape2dPlugin::default(),
                     BevyUiViewsPlugin,
                 ))

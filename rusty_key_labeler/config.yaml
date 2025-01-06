@@ -32,8 +32,9 @@ settings:
     x: 530.0
     y: 530.0
   bounding_boxes:
-    thickness: 2
-    corner_radius: 5.0
+    handle_size: 2.5     # Size of handles at corners of bounding box.
+    thickness: 0.5
+    corner_radius: 2.0
     class_color_map:
       # RGBA Color
       - (0, 255, 0, 255)
@@ -41,6 +42,7 @@ settings:
 
   delay_between_images: 0.1
   fit_padding_px: 200.0                    # Padding around objects fitted to the viewport
+
 
   ui_panel:
     font: "RobotoMono-Regular.ttf"

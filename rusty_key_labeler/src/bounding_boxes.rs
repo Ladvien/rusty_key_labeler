@@ -1,13 +1,15 @@
+use std::process::Command;
+
 use bevy::{
     color::{Color, Srgba},
     core::Name,
     math::{Vec2, Vec3, Vec4},
-    prelude::{Component, Resource, Transform},
+    prelude::{Commands, Component, Entity, Resource, Transform},
     render::view::RenderLayers,
 };
 use bevy_vector_shapes::{
     prelude::ShapeConfig,
-    shapes::{RectangleBundle, RectangleComponent, ShapeBundle},
+    shapes::{DiscBundle, RectangleBundle, RectangleComponent, ShapeBundle},
 };
 use hashbrown::HashMap;
 use serde::{Deserialize, Serialize};
@@ -15,11 +17,13 @@ use serde::{Deserialize, Serialize};
 use crate::{
     settings::MAIN_LAYER,
     utils::{scale_dimensions, srgba_string_to_color},
+    CornerHandle,
 };
 use yolo_io::YoloEntry;
 
 #[derive(Debug, PartialEq, Clone, Serialize)]
 pub struct BoundingBoxSettings {
+    pub handle_size: f32,
     pub thickness: f32,
     pub corner_radius: f32,
     #[serde(default)]
@@ -29,6 +33,7 @@ pub struct BoundingBoxSettings {
 impl Default for BoundingBoxSettings {
     fn default() -> Self {
         Self {
+            handle_size: 7.5,
             thickness: 1.0,
             corner_radius: 0.3,
             class_color_map: get_class_color_map(),
@@ -43,12 +48,14 @@ impl<'de> Deserialize<'de> for BoundingBoxSettings {
     {
         #[derive(Debug, Deserialize)]
         struct BoundingBoxSettingsHelper {
+            handle_size: Option<f32>,
             thickness: Option<f32>,
             corner_radius: Option<f32>,
             class_color_map: Option<Vec<String>>,
         }
 
         let helper = BoundingBoxSettingsHelper::deserialize(deserializer)?;
+        let handle_size = helper.handle_size.unwrap_or(7.5);
         let thickness = helper.thickness.unwrap_or(1.0);
         let corner_radius = helper.corner_radius.unwrap_or(0.3);
         let class_color_map = helper
@@ -60,6 +67,7 @@ impl<'de> Deserialize<'de> for BoundingBoxSettings {
             .ok_or_else(|| serde::de::Error::custom("Invalid color"))?;
 
         Ok(Self {
+            handle_size,
             thickness,
             corner_radius,
             class_color_map,
@@ -114,17 +122,13 @@ impl BoundingBoxPainter {
         Color::from(class_color)
     }
 
-    pub fn get_box(
+    pub fn spawn_bounding_box(
         &self,
+        commands: &mut Commands,
         index: usize,
         entry: &YoloEntry,
         image_size: Vec2,
-    ) -> (
-        Name,
-        ShapeBundle<RectangleComponent>,
-        BoundingBox,
-        RenderLayers,
-    ) {
+    ) -> Entity {
         let (scaled_x_center, scaled_y_center, scaled_width, scaled_height) = scale_dimensions(
             entry.x_center,
             entry.y_center,
@@ -140,30 +144,34 @@ impl BoundingBoxPainter {
 
         let class_color = self.bounding_box_settings.class_color_map[entry.class as usize];
 
-        (
-            Name::new(format!("bounding_box_{}", index)),
-            ShapeBundle::rect(
-                &ShapeConfig {
-                    color: Color::from(class_color),
-                    transform: bounding_box_transform,
-                    hollow: true,
-                    thickness: self.bounding_box_settings.thickness,
-                    corner_radii: Vec4::splat(self.bounding_box_settings.corner_radius),
-                    ..ShapeConfig::default_2d()
+        let bounding_box_eid = &commands
+            .spawn((
+                Name::new(format!("bounding_box_{}", index)),
+                ShapeBundle::rect(
+                    &ShapeConfig {
+                        color: Color::from(class_color),
+                        transform: bounding_box_transform,
+                        hollow: true,
+                        thickness: self.bounding_box_settings.thickness,
+                        corner_radii: Vec4::splat(self.bounding_box_settings.corner_radius),
+                        ..ShapeConfig::default_2d()
+                    },
+                    size,
+                ),
+                BoundingBox {
+                    index,
+                    class: self.class_map[&entry.class].clone(),
+                    class_color: Color::from(class_color),
+                    x: scaled_x_center,
+                    y: scaled_y_center,
+                    width: scaled_width,
+                    height: scaled_height,
                 },
-                size,
-            ),
-            BoundingBox {
-                index,
-                class: self.class_map[&entry.class].clone(),
-                class_color: Color::from(class_color),
-                x: scaled_x_center,
-                y: scaled_y_center,
-                width: scaled_width,
-                height: scaled_height,
-            },
-            MAIN_LAYER,
-        )
+                MAIN_LAYER,
+            ))
+            .id();
+
+        *bounding_box_eid
     }
 
     fn get_bounding_box_transform(x_center: f32, y_center: f32, image_size: Vec2) -> Transform {

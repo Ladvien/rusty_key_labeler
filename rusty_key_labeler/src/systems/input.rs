@@ -6,7 +6,7 @@ use crate::{
 use bevy::{prelude::*, render::camera};
 use itertools::Itertools;
 
-use super::start_image_load;
+use super::{start_image_load, CornerHandle};
 
 pub fn image_selection_system(
     mut commands: Commands,
@@ -113,6 +113,7 @@ pub fn change_bounding_box_selection(
     bounding_boxes: Query<(Entity, &BoundingBox)>,
     selected_bounding_box: Query<(Entity, &BoundingBox), With<SelectedBoundingBox>>,
     images: Res<Assets<Image>>,
+    corner_handles: Query<Entity, With<CornerHandle>>,
 ) {
     // Behavior
     // Upon tab key press
@@ -125,6 +126,10 @@ pub fn change_bounding_box_selection(
 
     // Change on tab press
     if keyboard_input.just_pressed(app_data.config.settings.key_map.change_selection) {
+        for entity in corner_handles.iter() {
+            commands.entity(entity).despawn_recursive();
+        }
+
         // Collect bounding boxes and sort them by index
         let ordered_bounding_boxes: Vec<(Entity, &BoundingBox)> = bounding_boxes
             .iter()
