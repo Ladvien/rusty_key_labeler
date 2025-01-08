@@ -67,7 +67,8 @@ settings:
     pan_left: 'KeyD'
     pan_right: 'KeyA'
 
-    change_selection: 'Tab'
+    cycle_selection: 'Tab'
+    change_selection: 'Space'
     # save: 13
     # quit: 27
     # next: 32

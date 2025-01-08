@@ -1,13 +1,8 @@
-use bevy::render::{
-    render_asset::RenderAssetUsages,
-    render_resource::{Extent3d, TextureDimension, TextureFormat},
-};
-use bevy::{color::palettes::css::*, prelude::*};
+use bevy::prelude::*;
 use bevy_ui_views::{VStack, VStackContainerItem};
 
 use crate::{
     settings::{UiColors, UI_LAYER},
-    utils::color_to_float_array,
     CurrentFileNameLabel, FileNameLabelUpdateNeeded, UIBottomPanel, UILeftPanel, UITopPanel,
     UiBasePanel, UiLabelingIndex, UiLabelingIndexUpdateNeeded,
 };

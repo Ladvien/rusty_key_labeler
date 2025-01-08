@@ -24,6 +24,7 @@ pub struct KeyMap {
     pub pan_down: KeyCode,
     pub pan_left: KeyCode,
     pub pan_right: KeyCode,
+    pub cycle_selection: KeyCode,
     pub change_selection: KeyCode,
 }
 
@@ -36,7 +37,8 @@ impl Default for KeyMap {
             pan_down: KeyCode::KeyS,
             pan_left: KeyCode::KeyA,
             pan_right: KeyCode::KeyD,
-            change_selection: KeyCode::Tab,
+            cycle_selection: KeyCode::Tab,
+            change_selection: KeyCode::Space,
         }
     }
 }
@@ -214,7 +216,8 @@ mod tests {
                 pan_down: KeyCode::KeyS,
                 pan_left: KeyCode::KeyA,
                 pan_right: KeyCode::KeyD,
-                change_selection: KeyCode::Tab,
+                cycle_selection: KeyCode::Tab,
+                change_selection: KeyCode::Space
             }
         );
     }

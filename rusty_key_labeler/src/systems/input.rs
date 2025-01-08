@@ -3,15 +3,7 @@ use crate::{
     resources::AppData,
     CenterInViewport, ComputedViewport, DebounceTimer, FocusInViewport, MainCamera, SelectedImage,
 };
-use bevy::{
-    color::palettes::css::FIRE_BRICK,
-    prelude::*,
-    render::{camera, view},
-};
-use bevy_vector_shapes::{
-    prelude::ShapeConfig,
-    shapes::{RectangleBundle, ShapeBundle},
-};
+use bevy::prelude::*;
 use itertools::Itertools;
 
 use super::{start_image_load, CornerHandle};
@@ -133,7 +125,7 @@ pub fn cycle_bounding_box_selection(
     //    and fit the viewport to the image.
 
     // Change on tab press
-    if keyboard_input.just_pressed(app_data.config.settings.key_map.change_selection) {
+    if keyboard_input.just_pressed(app_data.config.settings.key_map.cycle_selection) {
         for entity in corner_handles.iter() {
             commands.entity(entity).despawn_recursive();
         }
@@ -201,6 +193,7 @@ pub fn select_bounding_box_nearest_center(
     bounding_boxes: Query<(Entity, &BoundingBox, &Transform)>,
     selected_bounding_box: Query<Entity, With<SelectedBoundingBox>>,
     main_camera: Query<&GlobalTransform, With<MainCamera>>,
+    app_data: Res<AppData>,
 ) {
     if viewport.iter().count() == 0 {
         info!("Viewport not yet computed.");
@@ -214,7 +207,7 @@ pub fn select_bounding_box_nearest_center(
 
     let main_camera_transform = main_camera.single();
 
-    if input.just_released(KeyCode::Space) {
+    if input.just_released(app_data.config.settings.key_map.change_selection) {
         for entity in selected_bounding_box.iter() {
             commands.entity(entity).remove::<SelectedBoundingBox>();
         }
