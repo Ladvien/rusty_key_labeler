@@ -1,9 +1,17 @@
 use crate::{
     bounding_boxes::{BoundingBox, SelectedBoundingBox},
     resources::AppData,
-    CenterInViewport, DebounceTimer, FocusInViewport, MainCamera, SelectedImage,
+    CenterInViewport, ComputedViewport, DebounceTimer, FocusInViewport, MainCamera, SelectedImage,
 };
-use bevy::{prelude::*, render::camera};
+use bevy::{
+    color::palettes::css::FIRE_BRICK,
+    prelude::*,
+    render::{camera, view},
+};
+use bevy_vector_shapes::{
+    prelude::ShapeConfig,
+    shapes::{RectangleBundle, ShapeBundle},
+};
 use itertools::Itertools;
 
 use super::{start_image_load, CornerHandle};
@@ -105,7 +113,7 @@ pub fn zoom_image_system(
     }
 }
 
-pub fn change_bounding_box_selection(
+pub fn cycle_bounding_box_selection(
     mut commands: Commands,
     app_data: ResMut<AppData>,
     selected_image: Query<(Entity, &Sprite, &SelectedImage)>,
@@ -186,6 +194,110 @@ pub fn change_bounding_box_selection(
     }
 }
 
+#[derive(Debug, Clone, Component)]
+pub struct ViewportCenter;
+
+pub fn select_bounding_box(
+    mut commands: Commands,
+    input: Res<ButtonInput<KeyCode>>,
+    viewport: Query<&ComputedViewport>,
+    bounding_boxes: Query<(Entity, &BoundingBox, &Transform)>,
+    selected_bounding_box: Query<Entity, With<SelectedBoundingBox>>,
+    viewport_center: Query<Entity, With<ViewportCenter>>,
+    main_camera: Query<(&OrthographicProjection, &GlobalTransform), With<MainCamera>>,
+) {
+    if viewport.iter().count() == 0 {
+        info!("Viewport not yet computed.");
+        return;
+    }
+
+    if bounding_boxes.iter().count() == 0 {
+        info!("No bounding boxes to select.");
+        return;
+    }
+
+    let (main_camera, main_camera_transform) = main_camera.single();
+
+    if input.just_released(KeyCode::Space) {
+        let viewport = viewport.single();
+
+        for entity in selected_bounding_box.iter() {
+            commands.entity(entity).remove::<SelectedBoundingBox>();
+        }
+
+        let mut shortest_distance = 999999.0;
+        let mut closest_bounding_box_eid: Option<Entity> = None;
+        for (bounding_box_eid, bounding_box, bb_transform) in bounding_boxes.iter() {
+            // info!("Bounding box: {:#?}", bounding_box);
+            let dist_to_viewport = euclidean_distance(
+                &main_camera_transform.translation().xy(),
+                // &viewport.translation.xy(),
+                // &Vec2::new(0.0, 0.0),
+                // &Vec2::new(bounding_box.x, bounding_box.y),
+                &bb_transform.translation.xy(),
+            );
+
+            if dist_to_viewport < shortest_distance {
+                shortest_distance = dist_to_viewport;
+                closest_bounding_box_eid = Some(bounding_box_eid);
+            }
+
+            info!(
+                "Bounding box {} has distance: {}",
+                bounding_box.index, dist_to_viewport
+            );
+        }
+
+        if let Some(closest_bounding_box_eid) = closest_bounding_box_eid {
+            info!(
+                "Closest bounding box: {:#?}",
+                bounding_boxes.get(closest_bounding_box_eid)
+            );
+            for selected_bounding_box_eid in selected_bounding_box.iter() {
+                commands
+                    .entity(selected_bounding_box_eid)
+                    .remove::<SelectedBoundingBox>();
+            }
+
+            for center in viewport_center.iter() {
+                commands.entity(center).despawn_recursive();
+            }
+
+            // let projection = main_camera.single();
+
+            // let size = Vec2::new(viewport.width, viewport.height) * projection.scale;
+            let size = Vec2::new(10.0, 10.0);
+            commands.spawn((
+                Name::from("viewport_center"),
+                ShapeBundle::rect(
+                    &ShapeConfig {
+                        color: Color::from(FIRE_BRICK),
+                        transform: Transform::from_translation(Vec3::new(
+                            main_camera_transform.translation().x,
+                            main_camera_transform.translation().y,
+                            999.0,
+                        )),
+                        // hollow: true,
+                        // thickness: self.bounding_box_settings.thickness,
+                        // corner_radii: Vec4::splat(self.bounding_box_settings.corner_radius),
+                        ..ShapeConfig::default_2d()
+                    },
+                    size,
+                ),
+                ViewportCenter,
+            ));
+
+            commands
+                .entity(closest_bounding_box_eid)
+                .insert(SelectedBoundingBox);
+        }
+    }
+}
+
+pub fn euclidean_distance(position1: &Vec2, position2: &Vec2) -> f32 {
+    ((position2.x - position1.x).powi(2) + (position2.y - position1.y).powi(2)).sqrt()
+}
+
 fn select_initial_bounding_box(
     mut commands: Commands,
     new_bb_entity: &Entity,
@@ -221,7 +333,6 @@ fn reset_bounding_box_selection(
 
     // Fit the viewport to the image
     let (selected_image_entity, sprite, _) = selected_image.single();
-
     let image = images.get(&sprite.image).unwrap();
 
     commands

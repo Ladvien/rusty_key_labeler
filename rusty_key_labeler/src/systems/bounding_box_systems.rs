@@ -1,8 +1,11 @@
-use bevy::prelude::*;
+use bevy::{
+    color::palettes::tailwind::{RED_50, RED_700},
+    prelude::*,
+};
 use bevy_ui_views::VStackUpdatedItems;
 use bevy_vector_shapes::{
     prelude::ShapeConfig,
-    shapes::{DiscBundle, RectangleComponent, ShapeBundle, ShapeFill},
+    shapes::{DiscBundle, RectangleBundle, RectangleComponent, ShapeBundle, ShapeFill},
 };
 use itertools::Itertools;
 
@@ -10,7 +13,7 @@ use crate::{
     bounding_boxes::{BoundingBox, BoundingBoxPainter, ContainsBoundingBoxes, SelectedBoundingBox},
     resources::AppData,
     utils::create_image_from_color,
-    ImageReady, SelectedImage, Ui,
+    CenterInViewport, FocusInViewport, ImageReady, MainCamera, SelectedImage, Ui,
 };
 
 pub fn load_bounding_boxes(
@@ -138,15 +141,17 @@ pub fn highlight_bounding_box(
     corner_handles: Query<Entity, With<CornerHandle>>,
     mut selected_bounding_box: Query<
         (Entity, &BoundingBox, &mut RectangleComponent),
-        With<SelectedBoundingBox>,
+        Changed<SelectedBoundingBox>,
     >,
     bb_painter: Res<BoundingBoxPainter>,
     app_data: Res<AppData>,
-    mut alpha_descending: Local<bool>,
-    time: Res<Time>,
 ) {
-    if corner_handles.iter().count() > 0 {
+    if selected_bounding_box.iter().count() == 0 {
         return;
+    }
+
+    for corner_handle_eid in corner_handles.iter() {
+        commands.entity(corner_handle_eid).despawn_recursive();
     }
 
     for (selected_bb_eid, bounding_box, rect) in selected_bounding_box.iter_mut() {
@@ -180,16 +185,16 @@ pub fn highlight_bounding_box(
         for handle in handles.iter() {
             let handle_component = (
                 Name::new(handle.name.clone()),
-                ShapeBundle::circle(
+                ShapeBundle::rect(
                     &ShapeConfig {
-                        color: bounding_box.class_color,
-                        transform: Transform::from_translation(handle.position.extend(0.0)),
+                        color: Color::from(RED_700),
+                        transform: Transform::from_translation(handle.position.extend(999.0)),
                         hollow: true,
                         thickness: bb_painter.bounding_box_settings.thickness,
                         corner_radii: Vec4::splat(bb_painter.bounding_box_settings.corner_radius),
                         ..ShapeConfig::default_2d()
                     },
-                    handle_size,
+                    Vec2::splat(handle_size),
                 ),
                 handle.clone(),
             );
@@ -199,32 +204,5 @@ pub fn highlight_bounding_box(
                 .entity(selected_bb_eid)
                 .add_child(handle_component_id);
         }
-
-        // let box_handles = CornerHandles {
-        //     top_left,
-        //     top_right,
-        //     bottom_left,
-        //     bottom_right,
-        // };
-
-        // let handles = commands.spawn(box_handles).id();
-        // commands.entity(bb_eid).add_child(handles);
-
-        /////////////////////////////////////////////
-        // Throbbing color system
-        // let mut alpha = shape_fill.color.alpha();
-        // if alpha > 0.9 {
-        //     *alpha_descending = true;
-        // } else if alpha < 0.25 {
-        //     *alpha_descending = false;
-        // }
-
-        // if *alpha_descending {
-        //     alpha -= 0.75 * time.delta_secs();
-        // } else {
-        //     alpha += 0.75 * time.delta_secs();
-        // }
-        // shape_fill.color.set_alpha(alpha);
-        /////////////////////////////////////////////
     }
 }

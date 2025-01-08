@@ -32,9 +32,9 @@ settings:
     x: 530.0
     y: 530.0
   bounding_boxes:
-    handle_size: 2.5     # Size of handles at corners of bounding box.
+    handle_size: 5.5     # Size of handles at corners of bounding box.
     thickness: 0.5
-    corner_radius: 2.0
+    corner_radius: 0.5
     class_color_map:
       # RGBA Color
       - (0, 255, 0, 255)

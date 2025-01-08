@@ -66,7 +66,7 @@ fn main() {
                 .init_resource::<Assets<ColorMaterial>>()
                 .add_plugins((
                     DefaultPlugins.set(ImagePlugin::default_nearest()), // Makes images crisp
-                    // WorldInspectorPlugin::new(),
+                    WorldInspectorPlugin::new(),
                     Shape2dPlugin::default(),
                     BevyUiViewsPlugin,
                 ))
@@ -88,8 +88,9 @@ fn main() {
                         fit_to_viewport,
                         center_in_viewport,
                         compute_viewport,
-                        change_bounding_box_selection,
+                        cycle_bounding_box_selection,
                         highlight_bounding_box,
+                        select_bounding_box,
                     )
                         .chain(),
                 )
