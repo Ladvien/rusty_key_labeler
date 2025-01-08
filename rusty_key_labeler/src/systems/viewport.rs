@@ -156,3 +156,34 @@ pub fn center_in_viewport(
         commands.entity(entity).remove::<CenterInViewport>();
     }
 }
+
+#[derive(Debug, Clone, Component)]
+pub struct ViewportCenter;
+
+// for center in viewport_center.iter() {
+//     commands.entity(center).despawn_recursive();
+// }
+
+// // let projection = main_camera.single();
+
+// // let size = Vec2::new(viewport.width, viewport.height) * projection.scale;
+// let size = Vec2::new(10.0, 10.0);
+// commands.spawn((
+//     Name::from("viewport_center"),
+//     ShapeBundle::rect(
+//         &ShapeConfig {
+//             color: Color::from(FIRE_BRICK),
+//             transform: Transform::from_translation(Vec3::new(
+//                 main_camera_transform.translation().x,
+//                 main_camera_transform.translation().y,
+//                 999.0,
+//             )),
+//             // hollow: true,
+//             // thickness: self.bounding_box_settings.thickness,
+//             // corner_radii: Vec4::splat(self.bounding_box_settings.corner_radius),
+//             ..ShapeConfig::default_2d()
+//         },
+//         size,
+//     ),
+//     ViewportCenter,
+// ));

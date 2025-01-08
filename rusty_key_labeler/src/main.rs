@@ -90,7 +90,7 @@ fn main() {
                         compute_viewport,
                         cycle_bounding_box_selection,
                         highlight_bounding_box,
-                        select_bounding_box,
+                        select_bounding_box_nearest_center,
                     )
                         .chain(),
                 )

@@ -38,16 +38,3 @@ pub struct ComputedViewport {
 
 #[derive(Debug, Clone, Default, Component)]
 pub struct UninitializedRenderTarget;
-
-// #[derive(Debug, Clone, Component)]
-// pub struct EuclideanDistance {
-//     pub target: Entity,
-//     pub subject: Entity,
-// }
-
-// #[derive(Debug, Clone, Component)]
-// pub struct ComputedEuclideanDistance {
-//     pub distance: f32,
-//     pub target: Entity,
-//     pub subject: Entity,
-// }

@@ -1,11 +1,8 @@
-use bevy::{
-    color::palettes::tailwind::{RED_50, RED_700},
-    prelude::*,
-};
+use bevy::{color::palettes::tailwind::RED_700, prelude::*};
 use bevy_ui_views::VStackUpdatedItems;
 use bevy_vector_shapes::{
     prelude::ShapeConfig,
-    shapes::{DiscBundle, RectangleBundle, RectangleComponent, ShapeBundle, ShapeFill},
+    shapes::{RectangleBundle, RectangleComponent, ShapeBundle},
 };
 use itertools::Itertools;
 
@@ -13,7 +10,7 @@ use crate::{
     bounding_boxes::{BoundingBox, BoundingBoxPainter, ContainsBoundingBoxes, SelectedBoundingBox},
     resources::AppData,
     utils::create_image_from_color,
-    CenterInViewport, FocusInViewport, ImageReady, MainCamera, SelectedImage, Ui,
+    ImageReady, SelectedImage, Ui,
 };
 
 pub fn load_bounding_boxes(

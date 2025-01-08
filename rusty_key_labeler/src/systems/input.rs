@@ -194,17 +194,13 @@ pub fn cycle_bounding_box_selection(
     }
 }
 
-#[derive(Debug, Clone, Component)]
-pub struct ViewportCenter;
-
-pub fn select_bounding_box(
+pub fn select_bounding_box_nearest_center(
     mut commands: Commands,
     input: Res<ButtonInput<KeyCode>>,
     viewport: Query<&ComputedViewport>,
     bounding_boxes: Query<(Entity, &BoundingBox, &Transform)>,
     selected_bounding_box: Query<Entity, With<SelectedBoundingBox>>,
-    viewport_center: Query<Entity, With<ViewportCenter>>,
-    main_camera: Query<(&OrthographicProjection, &GlobalTransform), With<MainCamera>>,
+    main_camera: Query<&GlobalTransform, With<MainCamera>>,
 ) {
     if viewport.iter().count() == 0 {
         info!("Viewport not yet computed.");
@@ -216,76 +212,38 @@ pub fn select_bounding_box(
         return;
     }
 
-    let (main_camera, main_camera_transform) = main_camera.single();
+    let main_camera_transform = main_camera.single();
 
     if input.just_released(KeyCode::Space) {
-        let viewport = viewport.single();
-
         for entity in selected_bounding_box.iter() {
             commands.entity(entity).remove::<SelectedBoundingBox>();
         }
 
-        let mut shortest_distance = 999999.0;
-        let mut closest_bounding_box_eid: Option<Entity> = None;
-        for (bounding_box_eid, bounding_box, bb_transform) in bounding_boxes.iter() {
-            // info!("Bounding box: {:#?}", bounding_box);
-            let dist_to_viewport = euclidean_distance(
-                &main_camera_transform.translation().xy(),
-                // &viewport.translation.xy(),
-                // &Vec2::new(0.0, 0.0),
-                // &Vec2::new(bounding_box.x, bounding_box.y),
-                &bb_transform.translation.xy(),
+        let closest_bounding_box = bounding_boxes
+            .iter()
+            .map(|(bounding_box_eid, _, bb_transform)| {
+                let distance = euclidean_distance(
+                    &main_camera_transform.translation().xy(),
+                    &bb_transform.translation.xy(),
+                );
+                (bounding_box_eid, distance)
+            })
+            .min_by(|(_, distance1), (_, distance2)| {
+                (*distance1 as usize).cmp(&(*distance2 as usize))
+            });
+
+        if let Some((closest_bounding_box_eid, distance)) = closest_bounding_box {
+            debug!(
+                "Closest bounding box: {:#?} with {} from the camera center.",
+                bounding_boxes.get(closest_bounding_box_eid),
+                distance
             );
 
-            if dist_to_viewport < shortest_distance {
-                shortest_distance = dist_to_viewport;
-                closest_bounding_box_eid = Some(bounding_box_eid);
-            }
-
-            info!(
-                "Bounding box {} has distance: {}",
-                bounding_box.index, dist_to_viewport
-            );
-        }
-
-        if let Some(closest_bounding_box_eid) = closest_bounding_box_eid {
-            info!(
-                "Closest bounding box: {:#?}",
-                bounding_boxes.get(closest_bounding_box_eid)
-            );
             for selected_bounding_box_eid in selected_bounding_box.iter() {
                 commands
                     .entity(selected_bounding_box_eid)
                     .remove::<SelectedBoundingBox>();
             }
-
-            for center in viewport_center.iter() {
-                commands.entity(center).despawn_recursive();
-            }
-
-            // let projection = main_camera.single();
-
-            // let size = Vec2::new(viewport.width, viewport.height) * projection.scale;
-            let size = Vec2::new(10.0, 10.0);
-            commands.spawn((
-                Name::from("viewport_center"),
-                ShapeBundle::rect(
-                    &ShapeConfig {
-                        color: Color::from(FIRE_BRICK),
-                        transform: Transform::from_translation(Vec3::new(
-                            main_camera_transform.translation().x,
-                            main_camera_transform.translation().y,
-                            999.0,
-                        )),
-                        // hollow: true,
-                        // thickness: self.bounding_box_settings.thickness,
-                        // corner_radii: Vec4::splat(self.bounding_box_settings.corner_radius),
-                        ..ShapeConfig::default_2d()
-                    },
-                    size,
-                ),
-                ViewportCenter,
-            ));
 
             commands
                 .entity(closest_bounding_box_eid)
